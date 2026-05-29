@@ -1,0 +1,69 @@
+spec:
+  inputs:
+    app_name:
+      default: "app"
+      description: "OTP app name; the template derives the test database as <app_name>_test."
+    image_tag:
+      default: "v0.1.0"
+      description: "public-image-bases elixir-builder tag to run jobs on."
+---
+stages:
+  - lint
+  - test
+
+.eiseron-phoenix-cache: &eiseron_phoenix_cache
+  key:
+    files:
+      - mix.lock
+  paths:
+    - deps/
+    - _build/
+
+lint:
+  stage: lint
+  image: registry.gitlab.com/eiseron/stack/public-image-bases/elixir-builder:$[[ inputs.image_tag ]]
+  tags:
+    - self-hosted
+  cache:
+    - *eiseron_phoenix_cache
+  variables:
+    MIX_ENV: dev
+  before_script:
+    - mix deps.get
+  script:
+    - mix format --check-formatted
+    - mix compile --warnings-as-errors
+    - mix credo --strict
+    - mix deps.audit
+    - mix sobelow --exit
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+
+test:
+  stage: test
+  image: registry.gitlab.com/eiseron/stack/public-image-bases/elixir-builder:$[[ inputs.image_tag ]]
+  tags:
+    - self-hosted
+  services:
+    - name: postgres:16-alpine
+      alias: postgres
+  variables:
+    MIX_ENV: test
+    DB_HOST: postgres
+    DB_USER: postgres
+    DB_PASS: postgres
+    DB_NAME: $[[ inputs.app_name ]]_test
+    POSTGRES_USER: postgres
+    POSTGRES_PASSWORD: postgres
+  cache:
+    - *eiseron_phoenix_cache
+  before_script:
+    - mix deps.get
+    - until pg_isready -h postgres -U postgres -t 1; do sleep 1; done
+  script:
+    - mix ecto.create
+    - mix ecto.migrate
+    - mix test
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH

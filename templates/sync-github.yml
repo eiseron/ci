@@ -1,0 +1,20 @@
+sync-github:
+  stage: sync
+  image: alpine:3.21
+  tags:
+    - self-hosted
+  before_script:
+    - apk add --no-cache git
+  cache: []
+  variables:
+    GIT_DEPTH: "0"
+  script:
+    - git remote add github "https://x-access-token:${GITHUB_TOKEN}@github.com/eiseron/${CI_PROJECT_NAME}.git"
+    - git push github HEAD:refs/heads/main --tags
+  rules:
+    # Gated on GITHUB_TOKEN: the job is safe to include in every project, and
+    # Terraform controls which ones actually mirror by injecting the token.
+    - if: $GITHUB_TOKEN == null || $GITHUB_TOKEN == ""
+      when: never
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - if: $CI_COMMIT_TAG
