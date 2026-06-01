@@ -49,7 +49,7 @@ bumped the version.
 include:
   - project: eiseron/stack/ci
     file: /templates/release.yml
-    ref: v0.1.1
+    ref: v0.1.2
 
 stages:
   - release
@@ -70,7 +70,7 @@ Inputs:
 | input | default | purpose |
 |-------|---------|---------|
 | `version_file` | `VERSION` | path to the bare-semver file the job reads |
-| `automation_ref` | `v0.1.0` | tag of `eiseron/stack/automation` (the `eiseron_automation` gem) to install |
+| `automation_ref` | `v0.1.1` | tag of `eiseron/stack/automation` (the `eiseron_automation` gem) to install |
 | `image` | `ruby:3.3-alpine` | Ruby image used to install and run the `eiseron` CLI |
 
 ## templates/sync-github.yml
