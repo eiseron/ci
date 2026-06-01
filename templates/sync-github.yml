@@ -1,6 +1,6 @@
 sync-github:
   stage: sync
-  image: alpine:3.21
+  image: alpine:3.23
   tags:
     - self-hosted
   before_script:

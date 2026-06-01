@@ -1,9 +1,11 @@
-# Dogfood our own mirror template instead of an inline copy.
+# Dogfood our own templates instead of inline copies.
 include:
+  - local: /templates/release.yml
   - local: /templates/sync-github.yml
 
 stages:
   - lint
+  - release
   - sync
 
 workflow:

@@ -1,0 +1,50 @@
+spec:
+  inputs:
+    version_file:
+      default: VERSION
+      description: File holding the bare semver string (no leading 'v').
+    automation_ref:
+      default: v0.1.0
+      description: Tag of eiseron/stack/automation (the eiseron_automation gem) to install.
+    image:
+      default: ruby:3.3-alpine
+      description: Ruby image used to install and run the eiseron CLI.
+---
+
+# Version-driven release tagging.
+#
+# The tagging logic lives in the eiseron_automation gem (eiseron/stack/
+# automation), installed here from a pinned git tag. When the version file
+# changes on a protected ref (main / release/*), `eiseron release tag` reads
+# the version, lifts tag protection with the protected EISERON_STACK_TOKEN,
+# creates v<version> from the reviewed commit, and restores protection. A tag
+# therefore always maps to a reviewed MR that changed the version file.
+#
+# Usage in a consumer .gitlab-ci.yml:
+#   include:
+#     - project: eiseron/stack/ci
+#       file: /templates/release.yml
+#       ref: v0.1.1
+#   stages: [release]
+
+release-tag:
+  stage: release
+  image: $[[ inputs.image ]]
+  tags:
+    - self-hosted
+  cache: []
+  variables:
+    VERSION_FILE: $[[ inputs.version_file ]]
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      changes:
+        - $[[ inputs.version_file ]]
+    - if: $CI_COMMIT_BRANCH =~ /^release\//
+      changes:
+        - $[[ inputs.version_file ]]
+  before_script:
+    - apk add --no-cache git
+    - gem install specific_install --no-document
+    - gem specific_install https://gitlab.com/eiseron/stack/automation.git -b "$[[ inputs.automation_ref ]]"
+  script:
+    - eiseron release tag

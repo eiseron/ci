@@ -32,6 +32,47 @@ The `image_tag` input and the `ref` are both version pins: the template
 version (`ref`) and the image version (`image_tag`) move independently and
 explicitly.
 
+## templates/release.yml
+
+`release-tag` job — the **only** way a stack repo gets a tag. Tags are
+protected at "no one" (Terraform-managed in `eiseron-ops`), so no human,
+maintainer, or push can create them. The tagging logic lives in the
+`eiseron_automation` gem (`eiseron/stack/automation`), which this job
+installs from a pinned git tag and invokes as `eiseron release tag`. When
+the version file changes on a protected ref (`main` or `release/*`), the
+command reads `v<version>`, lifts tag protection with the protected
+`EISERON_STACK_TOKEN`, creates the tag from the reviewed commit, and
+restores protection. A tag therefore always maps to a reviewed MR that
+bumped the version.
+
+```yaml
+include:
+  - project: eiseron/stack/ci
+    file: /templates/release.yml
+    ref: v0.1.1
+
+stages:
+  - release
+```
+
+Add a `VERSION` file at the repo root holding the bare semver (no `v`):
+
+```
+0.1.0
+```
+
+Bump it in an MR; on merge the job tags `v0.1.0`. Re-runs are idempotent
+(skips if the tag exists). Maintenance releases: branch `release/X.Y` off
+the old tag, bump `VERSION`, MR into the protected release branch.
+
+Inputs:
+
+| input | default | purpose |
+|-------|---------|---------|
+| `version_file` | `VERSION` | path to the bare-semver file the job reads |
+| `automation_ref` | `v0.1.0` | tag of `eiseron/stack/automation` (the `eiseron_automation` gem) to install |
+| `image` | `ruby:3.3-alpine` | Ruby image used to install and run the `eiseron` CLI |
+
 ## templates/sync-github.yml
 
 `sync-github` job — mirrors `main` + tags to `github.com/eiseron/<project>`
