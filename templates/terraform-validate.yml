@@ -1,0 +1,27 @@
+spec:
+  inputs:
+    chdir:
+      default: "."
+      description: "Directory of the Terraform module/config to validate."
+    image_tag:
+      default: "v0.1.3"
+      description: "public-image-bases terraform-tools tag to run the job on."
+    stage:
+      default: "validate"
+      description: "Pipeline stage for the job (consumer must declare it)."
+---
+terraform-validate:
+  stage: $[[ inputs.stage ]]
+  image:
+    name: registry.gitlab.com/eiseron/stack/public-image-bases/terraform-tools:$[[ inputs.image_tag ]]
+    entrypoint: [""]
+  tags:
+    - self-hosted
+  cache: []
+  script:
+    - terraform -chdir="$[[ inputs.chdir ]]" init -backend=false -input=false
+    - terraform -chdir="$[[ inputs.chdir ]]" fmt -check -recursive
+    - terraform -chdir="$[[ inputs.chdir ]]" validate
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH

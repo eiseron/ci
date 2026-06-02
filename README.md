@@ -32,6 +32,58 @@ The `image_tag` input and the `ref` are both version pins: the template
 version (`ref`) and the image version (`image_tag`) move independently and
 explicitly.
 
+## templates/terraform-validate.yml
+
+`terraform-validate` job — `init -backend=false` + `fmt -check -recursive` +
+`validate` for a Terraform module, on the shared `terraform-tools` image
+(whose `terraform` entrypoint is overridden so the shell runs the script).
+
+```yaml
+include:
+  - project: eiseron/stack/ci
+    file: /templates/terraform-validate.yml
+    ref: v0.1.3
+    inputs:
+      chdir: modules/preview_host
+
+stages:
+  - validate
+```
+
+Inputs:
+
+| input | default | purpose |
+|-------|---------|---------|
+| `chdir` | `.` | directory of the Terraform module/config to validate |
+| `image_tag` | `v0.1.3` | `public-image-bases/terraform-tools` tag the job runs on |
+| `stage` | `validate` | pipeline stage for the job (the consumer must declare it) |
+
+## templates/ansible-collection.yml
+
+`ansible-collection` job — builds the Ansible collection, installs it, and
+(optionally) `--syntax-check`s a playbook against it, on the shared
+`python-ansible` image. An empty `playbook` input skips the syntax-check.
+
+```yaml
+include:
+  - project: eiseron/stack/ci
+    file: /templates/ansible-collection.yml
+    ref: v0.1.3
+    inputs:
+      playbook: playbooks/preview-host.yml
+
+stages:
+  - validate
+```
+
+Inputs:
+
+| input | default | purpose |
+|-------|---------|---------|
+| `playbook` | _(empty)_ | playbook to `--syntax-check` after install; empty skips it |
+| `image_tag` | `v0.1.3` | `public-image-bases/python-ansible` tag the job runs on |
+| `stage` | `validate` | pipeline stage for the job (the consumer must declare it) |
+
 ## templates/release.yml
 
 `release-tag` job — the **only** way a stack repo gets a tag. Tags are
