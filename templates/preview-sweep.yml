@@ -1,0 +1,49 @@
+spec:
+  inputs:
+    image_tag:
+      default: "v0.1.6"
+      description: "public-image-bases python-ansible tag (carries ruby + ansible)."
+    automation_ref:
+      default: "v0.2.0"
+      description: "eiseron/stack/automation tag providing the eiseron CLI."
+    provisioning_ref:
+      default: "v0.8.0"
+      description: "eiseron.provisioning collection tag the playbook runs from."
+    app_name:
+      default: "app"
+      description: "Product slug; deployed previews are matched as <app_name>-mr-<iid><preview_suffix>."
+    preview_suffix:
+      default: ""
+      description: "Suffix used by the deploy template (e.g. -preview); must match it."
+    scan_project:
+      description: "URL-path of the product project whose still-open MRs are kept (e.g. group/holter/holter)."
+    sweep_stage:
+      default: "sweep"
+      description: "Pipeline stage for the sweep job (the consumer must declare it)."
+---
+preview-sweep:
+  image:
+    name: registry.gitlab.com/eiseron/stack/public-image-bases/python-ansible:$[[ inputs.image_tag ]]
+  tags:
+    - self-hosted
+  cache: []
+  stage: $[[ inputs.sweep_stage ]]
+  variables:
+    GIT_STRATEGY: none
+    ANSIBLE_HOST_KEY_CHECKING: "False"
+    ANSIBLE_PRIVATE_KEY_FILE: "$CI_PROJECT_DIR/preview_key"
+    EISERON_PREVIEW_APP: "$[[ inputs.app_name ]]"
+    EISERON_PREVIEW_SUFFIX: "$[[ inputs.preview_suffix ]]"
+    EISERON_PREVIEW_SCAN_PROJECT: "$[[ inputs.scan_project ]]"
+  before_script:
+    - install -d -m 700 "$CI_PROJECT_DIR"
+    - printf '%s\n' "$PREVIEW_ANSIBLE_SSH_PRIVATE_KEY" > "$CI_PROJECT_DIR/preview_key"
+    - chmod 600 "$CI_PROJECT_DIR/preview_key"
+    - gem install specific_install --no-document
+    - gem specific_install https://gitlab.com/eiseron/stack/automation.git -b "$[[ inputs.automation_ref ]]"
+    - ansible-galaxy collection install "git+https://gitlab.com/eiseron/stack/provisioning.git,$[[ inputs.provisioning_ref ]]" --force
+  script:
+    - eiseron preview sweep
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
+    - if: '$CI_PIPELINE_SOURCE == "web"'

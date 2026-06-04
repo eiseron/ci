@@ -86,9 +86,10 @@ Inputs:
 
 ## templates/preview-deploy.yml
 
-`preview-deploy` and `preview-stop` jobs that run the
-`eiseron.provisioning.preview_app` playbook (installed from a pinned
-collection tag) over SSH to the shared preview host.
+Thin `preview-deploy` and `preview-stop` jobs that install the
+`eiseron_automation` gem and run `eiseron preview deploy` / `eiseron preview
+stop`; the orchestration (assembling `DATABASE_URL`, invoking the
+`eiseron.provisioning.preview_app` playbook) lives in the tested gem.
 
 The host credentials (`PREVIEW_HOST_IP`, `PREVIEW_ANSIBLE_SSH_PRIVATE_KEY`)
 must never reach the app repo, so this template is **included by the
@@ -96,20 +97,17 @@ product's ops repo**, not the app repo. The app repo's MR pipeline builds
 and pushes its image (registry creds only), then **triggers** the ops repo
 passing `PREVIEW_MR_IID`, `PREVIEW_ACTION` (`deploy`/`stop`), and
 `PREVIEW_APP_IMAGE`. The triggered ops pipeline runs on a protected ref, so
-the protected host creds are in scope. Each job assembles `DATABASE_URL`
-from `PREVIEW_TENANT_NAME` / `PREVIEW_TENANT_PASSWORD` and the per-MR
-database, merges `PREVIEW_APP_EXTRA_ENV` (a JSON object of product secrets
-like `SECRET_KEY_BASE`), and serves the app at
-`<app_name>-mr-<iid><preview_suffix>.<preview_zone>`. Jobs are serialized
+the protected host creds are in scope. The app is served at
+`<app_name>-mr-<iid><preview_suffix>.<preview_zone>`; jobs are serialized
 per MR via `resource_group`. Teardown of merged/closed MRs is the ops
-repo's responsibility (a scheduled sweep that triggers `stop`).
+repo's responsibility (the scheduled `preview-sweep`).
 
 ```yaml
 # in the product's OPS repo
 include:
   - project: eiseron/stack/ci
     file: /templates/preview-deploy.yml
-    ref: v0.1.6
+    ref: v0.1.7
     inputs:
       app_name: example
       preview_zone: example.com
@@ -130,14 +128,59 @@ Inputs:
 | `app_port` | `4000` | container port the app listens on |
 | `db_host` / `db_port` | `shared-pg` / `5432` | shared Postgres address on the host docker network |
 | `db_url_scheme` | `postgresql` | scheme for the assembled `DATABASE_URL` (e.g. `ecto`) |
-| `provisioning_ref` | `v0.8.0` | `eiseron.provisioning` collection tag to install and run |
-| `image_tag` | `v0.1.3` | `public-image-bases/python-ansible` tag the jobs run on |
+| `automation_ref` | `v0.2.0` | `eiseron/stack/automation` tag (the `eiseron` CLI) |
+| `provisioning_ref` | `v0.8.0` | `eiseron.provisioning` collection tag |
+| `image_tag` | `v0.1.6` | `public-image-bases/python-ansible` tag (ruby + ansible) |
 | `deploy_stage` / `stop_stage` | `deploy` | pipeline stages (the consumer must declare them) |
 
 The ops repo supplies (Terraform-managed in `eiseron-ops`, protected):
 `PREVIEW_HOST_IP`, `PREVIEW_ANSIBLE_SSH_PRIVATE_KEY`, `PREVIEW_TENANT_NAME`,
 `PREVIEW_TENANT_PASSWORD`, and `PREVIEW_APP_EXTRA_ENV`. The trigger supplies
 `PREVIEW_MR_IID`, `PREVIEW_ACTION`, and `PREVIEW_APP_IMAGE`.
+
+## templates/preview-sweep.yml
+
+Thin `preview-sweep` job — the teardown safety net for previews whose merge
+requests are no longer open. It installs the `eiseron_automation` gem and
+runs `eiseron preview sweep`, which enumerates deployed previews (`docker
+ps`), lists the `scan_project`'s still-open MRs (GitLab API), and tears down
+every preview whose MR is not open (compose down, drop database, remove
+directory) via the `eiseron.provisioning.preview_app` playbook. Reconciling
+real state beats firing on close events, which can be missed. Runs in the
+ops repo on a schedule (protected scope, so the host creds are available).
+
+```yaml
+# in the product's OPS repo, on a schedule
+include:
+  - project: eiseron/stack/ci
+    file: /templates/preview-sweep.yml
+    ref: v0.1.7
+    inputs:
+      app_name: example
+      preview_suffix: "-preview"
+      scan_project: group/example/example
+
+stages:
+  - sweep
+```
+
+Inputs:
+
+| input | default | purpose |
+|-------|---------|---------|
+| `scan_project` | _(required)_ | URL-path of the product project whose still-open MRs are kept |
+| `app_name` | `app` | product slug; matches deployed previews `<app_name>-mr-<iid><preview_suffix>` |
+| `preview_suffix` | _(empty)_ | must match the deploy template's suffix |
+| `automation_ref` | `v0.2.0` | `eiseron/stack/automation` tag (the `eiseron` CLI) |
+| `provisioning_ref` | `v0.8.0` | `eiseron.provisioning` collection tag |
+| `image_tag` | `v0.1.6` | `public-image-bases/python-ansible` tag (ruby + ansible) |
+| `sweep_stage` | `sweep` | pipeline stage (the consumer must declare it) |
+
+The ops repo supplies (protected): `PREVIEW_HOST_IP`,
+`PREVIEW_ANSIBLE_SSH_PRIVATE_KEY`, `PREVIEW_TENANT_NAME`, and
+`PREVIEW_SWEEP_TOKEN` (a read-api token for `scan_project`); the gem reads
+the API base from the predefined `CI_API_V4_URL`. Add a pipeline schedule
+(e.g. hourly) to run it.
 
 ## templates/release.yml
 
