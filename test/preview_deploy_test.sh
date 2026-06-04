@@ -15,19 +15,24 @@ want() {
 want "preview-deploy:" "deploy job is missing"
 want "preview-stop:" "stop job is missing"
 
-want "on_stop: preview-stop" "deploy environment does not wire on_stop to the stop job"
-want "action: stop" "stop job is not an environment stop action"
+# Triggered model: the IID comes from the passed PREVIEW_MR_IID, not from the
+# app repo's own merge-request context, since the deploy runs in the ops repo.
+want "PREVIEW_MR_IID" "jobs do not key off the passed PREVIEW_MR_IID"
+grep -qF "CI_MERGE_REQUEST_IID" "$template" \
+  && fail "template still keys off CI_MERGE_REQUEST_IID instead of PREVIEW_MR_IID"
+
+want 'PREVIEW_ACTION == "deploy"' "deploy job is not gated on PREVIEW_ACTION deploy"
+want 'PREVIEW_ACTION == "stop"' "stop job is not gated on PREVIEW_ACTION stop"
 
 want "PREVIEW_APP_STATE: present" "deploy job does not set state present"
 want "PREVIEW_APP_STATE: absent" "stop job does not set state absent"
 
+want "action: stop" "stop job is not an environment stop action"
+
 want "eiseron.provisioning.preview_app" "preview_app collection playbook is not invoked"
 want 'provisioning.git,$[[ inputs.provisioning_ref ]]' "collection install is not pinned to inputs.provisioning_ref"
+want "resource_group: preview/\$PREVIEW_MR_IID" "jobs are not serialized per MR via resource_group"
+want "DATABASE_URL=" "DATABASE_URL is not assembled from the tenant credentials"
+want "PREVIEW_TENANT_PASSWORD_ENC" "tenant password is not URL-encoded before going into DATABASE_URL"
 
-want "resource_group: preview/\$CI_MERGE_REQUEST_IID" "jobs are not serialized per MR via resource_group"
-
-# The stop job must stay manual so a green deploy pipeline is not blocked by it.
-stop_block=$(awk '/^preview-stop:/{f=1} f{print} ' "$template")
-echo "$stop_block" | grep -qF "when: manual" || fail "stop job is not when: manual"
-
-echo "PASS: preview-deploy template wiring"
+echo "PASS: preview-deploy template wiring (trigger model)"

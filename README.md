@@ -86,24 +86,35 @@ Inputs:
 
 ## templates/preview-deploy.yml
 
-`preview-deploy` and `preview-stop` jobs — deploy a merge request's app to
-the shared preview host and tear it down on close. Both run the
+`preview-deploy` and `preview-stop` jobs that run the
 `eiseron.provisioning.preview_app` playbook (installed from a pinned
-collection tag) over SSH to the host. `preview-deploy` runs on every MR
-pipeline and registers a `preview/<iid>` environment with `on_stop`;
-`preview-stop` is the `action: stop` job GitLab triggers when the
-environment is stopped (MR merged or closed), and is also available
-manually. Jobs are serialized per MR via `resource_group`.
+collection tag) over SSH to the shared preview host.
+
+The host credentials (`PREVIEW_HOST_IP`, `PREVIEW_ANSIBLE_SSH_PRIVATE_KEY`)
+must never reach the app repo, so this template is **included by the
+product's ops repo**, not the app repo. The app repo's MR pipeline builds
+and pushes its image (registry creds only), then **triggers** the ops repo
+passing `PREVIEW_MR_IID`, `PREVIEW_ACTION` (`deploy`/`stop`), and
+`PREVIEW_APP_IMAGE`. The triggered ops pipeline runs on a protected ref, so
+the protected host creds are in scope. Each job assembles `DATABASE_URL`
+from `PREVIEW_TENANT_NAME` / `PREVIEW_TENANT_PASSWORD` and the per-MR
+database, merges `PREVIEW_APP_EXTRA_ENV` (a JSON object of product secrets
+like `SECRET_KEY_BASE`), and serves the app at
+`<app_name>-mr-<iid><preview_suffix>.<preview_zone>`. Jobs are serialized
+per MR via `resource_group`. Teardown of merged/closed MRs is the ops
+repo's responsibility (a scheduled sweep that triggers `stop`).
 
 ```yaml
+# in the product's OPS repo
 include:
   - project: eiseron/stack/ci
     file: /templates/preview-deploy.yml
-    ref: v0.1.5
+    ref: v0.1.6
     inputs:
       app_name: example
-      preview_zone: preview.example.com
-      app_port: 4000
+      preview_zone: example.com
+      preview_suffix: "-preview"
+      db_url_scheme: ecto
 
 stages:
   - deploy
@@ -113,17 +124,20 @@ Inputs:
 
 | input | default | purpose |
 |-------|---------|---------|
-| `preview_zone` | _(required)_ | DNS zone; app served at `<app_name>-mr-<iid>.<preview_zone>`, must be covered by the host wildcard cert |
-| `app_name` | `app` | product slug; deploy named `<app_name>-mr-<iid>` |
+| `preview_zone` | _(required)_ | DNS zone; app served at `<app_name>-mr-<iid><preview_suffix>.<preview_zone>`, must be covered by the host wildcard cert |
+| `app_name` | `app` | product slug; deploy named `<app_name>-mr-<iid><preview_suffix>` |
+| `preview_suffix` | _(empty)_ | suffix before the zone, e.g. `-preview` to serve `<slug>-preview.<zone>` |
 | `app_port` | `4000` | container port the app listens on |
+| `db_host` / `db_port` | `shared-pg` / `5432` | shared Postgres address on the host docker network |
+| `db_url_scheme` | `postgresql` | scheme for the assembled `DATABASE_URL` (e.g. `ecto`) |
 | `provisioning_ref` | `v0.8.0` | `eiseron.provisioning` collection tag to install and run |
 | `image_tag` | `v0.1.3` | `public-image-bases/python-ansible` tag the jobs run on |
 | `deploy_stage` / `stop_stage` | `deploy` | pipeline stages (the consumer must declare them) |
 
-The consumer supplies these as CI variables (Terraform-managed in
-`eiseron-ops`): `PREVIEW_HOST_IP`, `PREVIEW_ANSIBLE_SSH_PRIVATE_KEY`,
-`PREVIEW_TENANT_NAME`, `PREVIEW_APP_IMAGE`, and `PREVIEW_APP_ENV` (a JSON
-object of the app's runtime environment, e.g. `DATABASE_URL`).
+The ops repo supplies (Terraform-managed in `eiseron-ops`, protected):
+`PREVIEW_HOST_IP`, `PREVIEW_ANSIBLE_SSH_PRIVATE_KEY`, `PREVIEW_TENANT_NAME`,
+`PREVIEW_TENANT_PASSWORD`, and `PREVIEW_APP_EXTRA_ENV`. The trigger supplies
+`PREVIEW_MR_IID`, `PREVIEW_ACTION`, and `PREVIEW_APP_IMAGE`.
 
 ## templates/release.yml
 
