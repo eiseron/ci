@@ -9,8 +9,19 @@ sync-github:
   variables:
     GIT_DEPTH: "0"
   script:
+    # A release fires this on both the main pipeline and the new tag's
+    # pipeline; they push the same content concurrently and one loses the
+    # ref-lock race. Retry after refetching — the loser then sees GitHub
+    # already at the target and the push is a no-op success.
     - git remote add github "https://x-access-token:${GITHUB_TOKEN}@github.com/eiseron/${CI_PROJECT_NAME}.git"
-    - git push github HEAD:refs/heads/main --tags
+    - |
+      for attempt in 1 2 3; do
+        git push github HEAD:refs/heads/main --tags && exit 0
+        echo "mirror push rejected (concurrent run?); refetch + retry ($attempt)"
+        git fetch github --quiet || true
+        sleep 3
+      done
+      exit 1
   rules:
     # Gated on GITHUB_TOKEN: the job is safe to include in every project, and
     # Terraform controls which ones actually mirror by injecting the token.

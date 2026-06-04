@@ -4,7 +4,7 @@ spec:
       default: VERSION
       description: File holding the bare semver string (no leading 'v').
     automation_ref:
-      default: v0.1.1
+      default: v0.1.2
       description: Tag of eiseron/stack/automation (the eiseron_automation gem) to install.
     image:
       default: ruby:3.3-alpine
