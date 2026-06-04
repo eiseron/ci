@@ -1,0 +1,71 @@
+spec:
+  inputs:
+    image_tag:
+      default: "v0.1.3"
+      description: "public-image-bases python-ansible tag to run the jobs on."
+    provisioning_ref:
+      default: "v0.8.0"
+      description: "eiseron.provisioning collection tag to install and run."
+    app_name:
+      default: "app"
+      description: "Product slug; the deploy is named <app_name>-mr-<iid>."
+    app_port:
+      default: "4000"
+      description: "Container port the app listens on."
+    preview_zone:
+      description: "DNS zone for previews; the app is served at <app_name>-mr-<iid>.<preview_zone>, which must be covered by the host's wildcard certificate."
+    deploy_stage:
+      default: "deploy"
+      description: "Pipeline stage for the deploy job (the consumer must declare it)."
+    stop_stage:
+      default: "deploy"
+      description: "Pipeline stage for the stop job (the consumer must declare it)."
+---
+.eiseron-preview-base:
+  image:
+    name: registry.gitlab.com/eiseron/stack/public-image-bases/python-ansible:$[[ inputs.image_tag ]]
+  tags:
+    - self-hosted
+  cache: []
+  variables:
+    GIT_STRATEGY: none
+    ANSIBLE_HOST_KEY_CHECKING: "False"
+    ANSIBLE_PRIVATE_KEY_FILE: "$CI_PROJECT_DIR/preview_key"
+    PREVIEW_APP_NAME: "$[[ inputs.app_name ]]-mr-$CI_MERGE_REQUEST_IID"
+    PREVIEW_APP_HOST: "$[[ inputs.app_name ]]-mr-$CI_MERGE_REQUEST_IID.$[[ inputs.preview_zone ]]"
+    PREVIEW_APP_PORT: "$[[ inputs.app_port ]]"
+    PREVIEW_APP_DB_NAME: "${PREVIEW_TENANT_NAME}_mr${CI_MERGE_REQUEST_IID}"
+  before_script:
+    - install -d -m 700 "$CI_PROJECT_DIR"
+    - printf '%s\n' "$PREVIEW_ANSIBLE_SSH_PRIVATE_KEY" > "$CI_PROJECT_DIR/preview_key"
+    - chmod 600 "$CI_PROJECT_DIR/preview_key"
+    - ansible-galaxy collection install "git+https://gitlab.com/eiseron/stack/provisioning.git,$[[ inputs.provisioning_ref ]]" --force
+  script:
+    - ansible-playbook -i "$PREVIEW_HOST_IP," eiseron.provisioning.preview_app
+
+preview-deploy:
+  extends: .eiseron-preview-base
+  stage: $[[ inputs.deploy_stage ]]
+  variables:
+    PREVIEW_APP_STATE: present
+  environment:
+    name: preview/$CI_MERGE_REQUEST_IID
+    url: https://$[[ inputs.app_name ]]-mr-$CI_MERGE_REQUEST_IID.$[[ inputs.preview_zone ]]
+    on_stop: preview-stop
+  resource_group: preview/$CI_MERGE_REQUEST_IID
+  rules:
+    - if: $CI_MERGE_REQUEST_IID
+
+preview-stop:
+  extends: .eiseron-preview-base
+  stage: $[[ inputs.stop_stage ]]
+  variables:
+    PREVIEW_APP_STATE: absent
+  environment:
+    name: preview/$CI_MERGE_REQUEST_IID
+    action: stop
+  resource_group: preview/$CI_MERGE_REQUEST_IID
+  allow_failure: true
+  rules:
+    - if: $CI_MERGE_REQUEST_IID
+      when: manual

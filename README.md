@@ -84,6 +84,47 @@ Inputs:
 | `image_tag` | `v0.1.3` | `public-image-bases/python-ansible` tag the job runs on |
 | `stage` | `validate` | pipeline stage for the job (the consumer must declare it) |
 
+## templates/preview-deploy.yml
+
+`preview-deploy` and `preview-stop` jobs — deploy a merge request's app to
+the shared preview host and tear it down on close. Both run the
+`eiseron.provisioning.preview_app` playbook (installed from a pinned
+collection tag) over SSH to the host. `preview-deploy` runs on every MR
+pipeline and registers a `preview/<iid>` environment with `on_stop`;
+`preview-stop` is the `action: stop` job GitLab triggers when the
+environment is stopped (MR merged or closed), and is also available
+manually. Jobs are serialized per MR via `resource_group`.
+
+```yaml
+include:
+  - project: eiseron/stack/ci
+    file: /templates/preview-deploy.yml
+    ref: v0.1.5
+    inputs:
+      app_name: example
+      preview_zone: preview.example.com
+      app_port: 4000
+
+stages:
+  - deploy
+```
+
+Inputs:
+
+| input | default | purpose |
+|-------|---------|---------|
+| `preview_zone` | _(required)_ | DNS zone; app served at `<app_name>-mr-<iid>.<preview_zone>`, must be covered by the host wildcard cert |
+| `app_name` | `app` | product slug; deploy named `<app_name>-mr-<iid>` |
+| `app_port` | `4000` | container port the app listens on |
+| `provisioning_ref` | `v0.8.0` | `eiseron.provisioning` collection tag to install and run |
+| `image_tag` | `v0.1.3` | `public-image-bases/python-ansible` tag the jobs run on |
+| `deploy_stage` / `stop_stage` | `deploy` | pipeline stages (the consumer must declare them) |
+
+The consumer supplies these as CI variables (Terraform-managed in
+`eiseron-ops`): `PREVIEW_HOST_IP`, `PREVIEW_ANSIBLE_SSH_PRIVATE_KEY`,
+`PREVIEW_TENANT_NAME`, `PREVIEW_APP_IMAGE`, and `PREVIEW_APP_ENV` (a JSON
+object of the app's runtime environment, e.g. `DATABASE_URL`).
+
 ## templates/release.yml
 
 `release-tag` job — the **only** way a stack repo gets a tag. Tags are
