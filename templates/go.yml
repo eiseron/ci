@@ -35,18 +35,24 @@ lint:
   cache:
     - *go-cache
   script:
-    - test -z "$(gofmt -l .)" || { echo 'gofmt needed on:'; gofmt -l .; exit 1; }
+    - |
+      unformatted=$(gofmt -l . | grep -v '^.cache/' || true)
+      if [ -n "$unformatted" ]; then
+        echo "$unformatted"
+        echo 'gofmt needed on the files above'
+        exit 1
+      fi
     - go vet ./...
     - golangci-lint run ./...
     - |
-      line_comments=$(find . -name '*.go' -exec grep -nE '(^|[^:])//' {} + | grep -vE '//go:' || true)
+      line_comments=$(find . -path ./.cache -prune -o -name '*.go' -exec grep -nHE '(^|[^:])//' {} + | grep -vE '//go:' || true)
       if [ -n "$line_comments" ]; then
         echo "$line_comments"
         echo 'line comments are not allowed in source; move rationale to the MR description'
         exit 1
       fi
     - |
-      block_comments=$(find . -name '*.go' -exec grep -n '/[*]' {} + || true)
+      block_comments=$(find . -path ./.cache -prune -o -name '*.go' -exec grep -nH '/[*]' {} + || true)
       if [ -n "$block_comments" ]; then
         echo "$block_comments"
         echo 'block comments are not allowed in source'
