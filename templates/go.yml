@@ -11,14 +11,29 @@ stages:
   - lint
   - test
 
+.go-vars: &go-vars
+  GOTOOLCHAIN: local
+  GOFLAGS: -buildvcs=false
+  GOMODCACHE: $CI_PROJECT_DIR/.cache/go-mod
+  GOCACHE: $CI_PROJECT_DIR/.cache/go-build
+  GOLANGCI_LINT_CACHE: $CI_PROJECT_DIR/.cache/golangci
+
+.go-cache: &go-cache
+  key:
+    files:
+      - go.sum
+  paths:
+    - .cache/
+
 lint:
   stage: lint
   image: $[[ inputs.golangci_image ]]
   tags:
     - self-hosted
   variables:
-    GOTOOLCHAIN: local
-    GOFLAGS: -buildvcs=false
+    <<: *go-vars
+  cache:
+    - *go-cache
   script:
     - test -z "$(gofmt -l .)" || { echo 'gofmt needed on:'; gofmt -l .; exit 1; }
     - go vet ./...
@@ -46,8 +61,9 @@ test:
   tags:
     - self-hosted
   variables:
-    GOTOOLCHAIN: local
-    GOFLAGS: -buildvcs=false
+    <<: *go-vars
+  cache:
+    - *go-cache
   script:
     - go test ./... -race
   rules:
