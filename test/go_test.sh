@@ -12,10 +12,8 @@ want() {
   grep -qF -- "$1" "$template" || fail "$2"
 }
 
-want "gofmt -l" "gofmt check step is missing"
-want "go vet ./..." "go vet step is missing"
-want "golangci-lint run ./..." "golangci-lint step is missing"
+want "eiseron go lint" "lint step should run the eiseron gem command"
+want "go-tools" "lint job should use the go-tools image"
 want "go test ./... -race" "race test step is missing"
-want "line comments are not allowed in source" "comment lint step is missing"
 
 echo "PASS: go template wiring"

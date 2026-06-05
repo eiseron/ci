@@ -2,10 +2,10 @@ spec:
   inputs:
     go_image:
       default: "golang:1.25"
-      description: "Image used for the build and test jobs."
-    golangci_image:
-      default: "golangci/golangci-lint:v2.5.0-alpine"
-      description: "Image providing golangci-lint and the Go toolchain for the lint job."
+      description: "Image used for the test job."
+    lint_image:
+      default: "registry.gitlab.com/eiseron/stack/public-image-bases/go-tools:v0.1.7"
+      description: "Image with go, golangci-lint and the eiseron gem for the lint job."
 ---
 stages:
   - lint
@@ -27,7 +27,7 @@ stages:
 
 lint:
   stage: lint
-  image: $[[ inputs.golangci_image ]]
+  image: $[[ inputs.lint_image ]]
   tags:
     - self-hosted
   variables:
@@ -35,29 +35,7 @@ lint:
   cache:
     - *go-cache
   script:
-    - |
-      unformatted=$(gofmt -l . | grep -v '^.cache/' || true)
-      if [ -n "$unformatted" ]; then
-        echo "$unformatted"
-        echo 'gofmt needed on the files above'
-        exit 1
-      fi
-    - go vet ./...
-    - golangci-lint run ./...
-    - |
-      line_comments=$(find . -path ./.cache -prune -o -name '*.go' -exec grep -nHE '(^|[^:])//' {} + | grep -vE '//go:' || true)
-      if [ -n "$line_comments" ]; then
-        echo "$line_comments"
-        echo 'line comments are not allowed in source; move rationale to the MR description'
-        exit 1
-      fi
-    - |
-      block_comments=$(find . -path ./.cache -prune -o -name '*.go' -exec grep -nH '/[*]' {} + || true)
-      if [ -n "$block_comments" ]; then
-        echo "$block_comments"
-        echo 'block comments are not allowed in source'
-        exit 1
-      fi
+    - eiseron go lint
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
 

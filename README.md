@@ -34,9 +34,10 @@ explicitly.
 
 ## templates/go.yml
 
-`lint` + `test` jobs for an Eiseron Go project. `lint` runs `gofmt`, `go vet`,
-`golangci-lint` and rejects source comments (rationale belongs in the MR
-description). `test` runs `go test ./... -race`.
+`lint` + `test` jobs for an Eiseron Go project. `lint` runs `eiseron go lint`
+(gofmt, go vet, golangci-lint and the no-comments rule) on the `go-tools`
+image, which ships those tools and the gem. `test` runs `go test ./... -race`.
+Both cache the Go module and build caches keyed on `go.sum`.
 
 ```yaml
 include:
@@ -54,7 +55,7 @@ Inputs:
 | input | default | purpose |
 |-------|---------|---------|
 | `go_image` | `golang:1.25` | image for the `test` job |
-| `golangci_image` | `golangci/golangci-lint:v2.5.0-alpine` | image for the `lint` job |
+| `lint_image` | `public-image-bases/go-tools:v0.1.7` | image (go + golangci-lint + eiseron gem) for the `lint` job |
 
 ## templates/terraform-validate.yml
 
