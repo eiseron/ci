@@ -261,3 +261,38 @@ include:
 stages:
   - sync
 ```
+
+## templates/publish-docs.yml
+
+`publish-docs` job — on a semver tag, installs the `eiseron_automation` gem
+and runs `eiseron docs publish`: clones the docs site, refreshes the latest
+docs (preserving frozen version snapshots), freezes a `v<MAJOR.MINOR>`
+snapshot, updates `versions.json` and pushes to the site. The product
+authors docs in its own repo; a tag ships them. Needs a `GITLAB_TOKEN` CI
+variable with write access to the site (declare it via Terraform).
+
+```yaml
+include:
+  - project: eiseron/stack/ci
+    file: /templates/publish-docs.yml
+    ref: v0.1.10
+    inputs:
+      site_repo: eiseron/group/site
+      locale_map: '{"pt_BR":"src/docs","en":"src/en/docs"}'
+
+stages:
+  - publish
+```
+
+Inputs:
+
+| input | default | purpose |
+|-------|---------|---------|
+| `site_repo` | _(required)_ | full path of the docs site repo |
+| `locale_map` | _(required)_ | JSON object mapping source locale dir to site dest dir |
+| `automation_ref` | `v0.4.0` | `eiseron/stack/automation` tag (the `eiseron` CLI) |
+| `image` | `ruby:3.3-alpine` | Ruby image to install and run the CLI |
+| `source_dir` | `docs` | dir in the product repo holding the locale doc dirs |
+| `versions_file` | `versions.json` | versions manifest path in the site repo |
+| `site_branch` | `main` | branch of the site repo to push to |
+| `stage` | `publish` | pipeline stage (the consumer must declare it) |
