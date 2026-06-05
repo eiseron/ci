@@ -1,0 +1,55 @@
+spec:
+  inputs:
+    go_image:
+      default: "golang:1.25"
+      description: "Image used for the build and test jobs."
+    golangci_image:
+      default: "golangci/golangci-lint:v2.5.0-alpine"
+      description: "Image providing golangci-lint and the Go toolchain for the lint job."
+---
+stages:
+  - lint
+  - test
+
+lint:
+  stage: lint
+  image: $[[ inputs.golangci_image ]]
+  tags:
+    - self-hosted
+  variables:
+    GOTOOLCHAIN: local
+    GOFLAGS: -buildvcs=false
+  script:
+    - test -z "$(gofmt -l .)" || { echo 'gofmt needed on:'; gofmt -l .; exit 1; }
+    - go vet ./...
+    - golangci-lint run ./...
+    - |
+      line_comments=$(find . -name '*.go' -exec grep -nE '(^|[^:])//' {} + | grep -vE '//go:' || true)
+      if [ -n "$line_comments" ]; then
+        echo "$line_comments"
+        echo 'line comments are not allowed in source; move rationale to the MR description'
+        exit 1
+      fi
+    - |
+      block_comments=$(find . -name '*.go' -exec grep -n '/[*]' {} + || true)
+      if [ -n "$block_comments" ]; then
+        echo "$block_comments"
+        echo 'block comments are not allowed in source'
+        exit 1
+      fi
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+
+test:
+  stage: test
+  image: $[[ inputs.go_image ]]
+  tags:
+    - self-hosted
+  variables:
+    GOTOOLCHAIN: local
+    GOFLAGS: -buildvcs=false
+  script:
+    - go test ./... -race
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH

@@ -32,6 +32,30 @@ The `image_tag` input and the `ref` are both version pins: the template
 version (`ref`) and the image version (`image_tag`) move independently and
 explicitly.
 
+## templates/go.yml
+
+`lint` + `test` jobs for an Eiseron Go project. `lint` runs `gofmt`, `go vet`,
+`golangci-lint` and rejects source comments (rationale belongs in the MR
+description). `test` runs `go test ./... -race`.
+
+```yaml
+include:
+  - project: eiseron/stack/ci
+    file: /templates/go.yml
+    ref: v0.1.0
+
+stages:
+  - lint
+  - test
+```
+
+Inputs:
+
+| input | default | purpose |
+|-------|---------|---------|
+| `go_image` | `golang:1.25` | image for the `test` job |
+| `golangci_image` | `golangci/golangci-lint:v2.5.0-alpine` | image for the `lint` job |
+
 ## templates/terraform-validate.yml
 
 `terraform-validate` job — `init -backend=false` + `fmt -check -recursive` +
