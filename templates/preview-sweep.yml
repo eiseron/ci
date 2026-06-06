@@ -28,6 +28,8 @@ preview-sweep:
     - self-hosted
   cache: []
   stage: $[[ inputs.sweep_stage ]]
+  environment:
+    name: production
   variables:
     GIT_STRATEGY: none
     ANSIBLE_HOST_KEY_CHECKING: "False"

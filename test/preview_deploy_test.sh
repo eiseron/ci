@@ -23,7 +23,7 @@ want 'provisioning.git,$[[ inputs.provisioning_ref ]]' "collection install is no
 want 'PREVIEW_ACTION == "deploy"' "deploy job is not gated on PREVIEW_ACTION deploy"
 want 'PREVIEW_ACTION == "stop"' "stop job is not gated on PREVIEW_ACTION stop"
 want "EISERON_PREVIEW_ZONE" "deploy does not pass the preview zone to the CLI"
-want "action: stop" "stop job is not an environment stop action"
+want "name: production" "preview jobs do not run under the production environment (needed to match production-scoped vars; the per-MR stop action lives on the app side)"
 want "resource_group: preview/\$PREVIEW_MR_IID" "jobs are not serialized per MR via resource_group"
 
 echo "PASS: preview-deploy template wiring (thin, gem-backed)"

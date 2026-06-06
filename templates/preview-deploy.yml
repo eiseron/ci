@@ -65,8 +65,7 @@ preview-deploy:
   extends: .eiseron-preview-base
   stage: $[[ inputs.deploy_stage ]]
   environment:
-    name: preview/$PREVIEW_MR_IID
-    url: https://$[[ inputs.app_name ]]-mr-$PREVIEW_MR_IID$[[ inputs.preview_suffix ]].$[[ inputs.preview_zone ]]
+    name: production
   resource_group: preview/$PREVIEW_MR_IID
   script:
     - eiseron preview deploy
@@ -77,8 +76,7 @@ preview-stop:
   extends: .eiseron-preview-base
   stage: $[[ inputs.stop_stage ]]
   environment:
-    name: preview/$PREVIEW_MR_IID
-    action: stop
+    name: production
   resource_group: preview/$PREVIEW_MR_IID
   script:
     - eiseron preview stop
