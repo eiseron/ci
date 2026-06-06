@@ -15,8 +15,8 @@ spec:
     preview_zone:
       description: "DNS zone for previews; the MR environment links to <app_name>-mr-<iid><preview_suffix>.<preview_zone>."
     mix_env:
-      default: "prod"
-      description: "MIX_ENV used to compile the preview image."
+      default: "preview"
+      description: "MIX_ENV the preview image is compiled with (dedicated :preview env)."
     assets_command:
       default: "mix assets.deploy"
       description: "Command that builds and digests static assets before the image build."
