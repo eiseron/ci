@@ -55,7 +55,7 @@ spec:
     EISERON_PREVIEW_DB_PORT: "$[[ inputs.db_port ]]"
   before_script:
     - install -d -m 700 "$CI_PROJECT_DIR"
-    - printf '%s\n' "$PREVIEW_ANSIBLE_SSH_PRIVATE_KEY" > "$CI_PROJECT_DIR/preview_key"
+    - cp "$PREVIEW_ANSIBLE_SSH_PRIVATE_KEY" "$CI_PROJECT_DIR/preview_key"
     - chmod 600 "$CI_PROJECT_DIR/preview_key"
     - gem install specific_install --no-document
     - gem specific_install https://gitlab.com/eiseron/stack/automation.git -b "$[[ inputs.automation_ref ]]"
