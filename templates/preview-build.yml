@@ -1,0 +1,143 @@
+spec:
+  inputs:
+    builder_tag:
+      default: "latest"
+      description: "public-image-bases elixir-builder tag used to compile and build the image."
+    deployer_tag:
+      default: "latest"
+      description: "public-image-bases alpine-deploy tag used by the trigger jobs."
+    app_name:
+      default: "app"
+      description: "Product slug; the preview is named <app_name>-mr-<iid><preview_suffix>."
+    preview_suffix:
+      default: "-preview"
+      description: "Suffix appended to the slug before the zone; must match the deploy template."
+    preview_zone:
+      description: "DNS zone for previews; the MR environment links to <app_name>-mr-<iid><preview_suffix>.<preview_zone>."
+    mix_env:
+      default: "prod"
+      description: "MIX_ENV used to compile the preview image."
+    assets_command:
+      default: "mix assets.deploy"
+      description: "Command that builds and digests static assets before the image build."
+    build_stage:
+      default: "build"
+      description: "Pipeline stage for build_image (the consumer must declare it)."
+    preview_stage:
+      default: "preview"
+      description: "Pipeline stage for the deploy/stop preview trigger jobs (the consumer must declare it)."
+---
+build_image:
+  stage: $[[ inputs.build_stage ]]
+  timeout: 15 minutes
+  needs: []
+  allow_failure: true
+  image:
+    name: registry.gitlab.com/eiseron/stack/public-image-bases/elixir-builder:$[[ inputs.builder_tag ]]
+  before_script: []
+  cache:
+    - key:
+        prefix: "${CI_COMMIT_REF_PROTECTED}-deps"
+        files:
+          - mix.lock
+      paths:
+        - deps/
+      fallback_keys:
+        - "${CI_COMMIT_REF_PROTECTED}-deps-default"
+    - key:
+        prefix: "${CI_COMMIT_REF_PROTECTED}-build-$[[ inputs.mix_env ]]"
+        files:
+          - mix.lock
+      paths:
+        - "_build/$[[ inputs.mix_env ]]/"
+      fallback_keys:
+        - "${CI_COMMIT_REF_PROTECTED}-build-$[[ inputs.mix_env ]]-default"
+  variables:
+    MIX_ENV: "$[[ inputs.mix_env ]]"
+  rules:
+    - if: $PREVIEW_REGISTRY_PASSWORD == null || $PREVIEW_REGISTRY_PASSWORD == ""
+      when: never
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+      when: never
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+  script:
+    - mix deps.get
+    - mix deps.compile
+    - mix compile
+    - mix assets.setup
+    - $[[ inputs.assets_command ]]
+    - cp .docker/Dockerfile.preview Dockerfile
+    - AUTH_B64=$(printf '%s:%s' "$PREVIEW_REGISTRY_USER" "$PREVIEW_REGISTRY_PASSWORD" | base64 | tr -d '\n')
+    - mkdir -p "$DOCKER_CONFIG"
+    - echo "{\"auths\":{\"$CI_REGISTRY\":{\"auth\":\"$AUTH_B64\"}}}" > "$DOCKER_CONFIG/config.json"
+    - executor
+        --context "$CI_PROJECT_DIR"
+        --dockerfile "$CI_PROJECT_DIR/Dockerfile"
+        --destination "$CI_REGISTRY_IMAGE/preview:$CI_COMMIT_REF_SLUG"
+        --destination "$CI_REGISTRY_IMAGE/preview:$CI_COMMIT_REF_SLUG-sha-$CI_COMMIT_SHORT_SHA"
+        --cache=true
+        --cache-repo="$CI_REGISTRY_IMAGE/kaniko-cache"
+        --cache-ttl=168h
+        --push-retry=3
+
+.preview-trigger:
+  image:
+    name: registry.gitlab.com/eiseron/stack/public-image-bases/alpine-deploy:$[[ inputs.deployer_tag ]]
+  before_script: []
+
+deploy_preview:
+  extends: .preview-trigger
+  stage: $[[ inputs.preview_stage ]]
+  timeout: 2 minutes
+  needs: ["build_image"]
+  allow_failure: true
+  rules:
+    - if: $PREVIEW_DEPLOYER_PROJECT == null || $PREVIEW_DEPLOYER_PROJECT == ""
+      when: never
+    - if: $PREVIEW_DEPLOYER_TRIGGER_TOKEN == null || $PREVIEW_DEPLOYER_TRIGGER_TOKEN == ""
+      when: never
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  script:
+    - |
+      PROJECT_ENC=$(printf '%s' "$PREVIEW_DEPLOYER_PROJECT" | sed 's|/|%2F|g')
+      RESP=$(curl --fail --silent --show-error -X POST \
+        -F "token=$PREVIEW_DEPLOYER_TRIGGER_TOKEN" \
+        -F "ref=main" \
+        -F "variables[PREVIEW_MR_IID]=$CI_MERGE_REQUEST_IID" \
+        -F "variables[PREVIEW_APP_IMAGE]=$CI_REGISTRY_IMAGE/preview:$CI_COMMIT_REF_SLUG" \
+        -F "variables[PREVIEW_ACTION]=deploy" \
+        "$CI_API_V4_URL/projects/$PROJECT_ENC/trigger/pipeline")
+      echo "$RESP" | jq -r '"Downstream pipeline: \(.web_url)"'
+  environment:
+    name: preview/$CI_MERGE_REQUEST_IID
+    url: https://$[[ inputs.app_name ]]-mr-$CI_MERGE_REQUEST_IID$[[ inputs.preview_suffix ]].$[[ inputs.preview_zone ]]
+    on_stop: stop_preview
+    auto_stop_in: 7 days
+
+stop_preview:
+  extends: .preview-trigger
+  stage: $[[ inputs.preview_stage ]]
+  timeout: 2 minutes
+  needs: []
+  allow_failure: true
+  rules:
+    - if: $PREVIEW_DEPLOYER_PROJECT == null || $PREVIEW_DEPLOYER_PROJECT == ""
+      when: never
+    - if: $PREVIEW_DEPLOYER_TRIGGER_TOKEN == null || $PREVIEW_DEPLOYER_TRIGGER_TOKEN == ""
+      when: never
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      when: manual
+  script:
+    - |
+      PROJECT_ENC=$(printf '%s' "$PREVIEW_DEPLOYER_PROJECT" | sed 's|/|%2F|g')
+      RESP=$(curl --fail --silent --show-error -X POST \
+        -F "token=$PREVIEW_DEPLOYER_TRIGGER_TOKEN" \
+        -F "ref=main" \
+        -F "variables[PREVIEW_MR_IID]=$CI_MERGE_REQUEST_IID" \
+        -F "variables[PREVIEW_ACTION]=stop" \
+        "$CI_API_V4_URL/projects/$PROJECT_ENC/trigger/pipeline")
+      echo "$RESP" | jq -r '"Downstream pipeline: \(.web_url)"'
+  environment:
+    name: preview/$CI_MERGE_REQUEST_IID
+    action: stop
