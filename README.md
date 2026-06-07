@@ -83,6 +83,51 @@ Inputs:
 | `image_tag` | `v0.1.3` | `public-image-bases/terraform-tools` tag the job runs on |
 | `stage` | `validate` | pipeline stage for the job (the consumer must declare it) |
 
+## templates/terraform-drift.yml
+
+`terraform-drift` job — drift alarm for Terraform repos whose secrets live
+in SOPS-encrypted env files. Decrypts `secrets_file` with the `AGE_KEY`
+variable of the target environment, runs
+`terraform plan -detailed-exitcode -lock=false`, and fails when the plan is
+not empty (exit code 2). Two triggers:
+
+- scheduled pipelines carrying `DRIFT_CHECK=1` — catches drift born without
+  any pipeline (manual UI edits, external mutations, stale copies);
+- any default-branch pipeline except `trigger` ones — the same conditions
+  under which apply jobs run (merge, manual web run, reconciliation
+  schedules), so the alarm asserts convergence right after every apply.
+  Place the job in a stage after apply (the `drift` stage by default; the
+  consumer declares it last).
+
+The `AGE_KEY` of the chosen `environment` must decrypt `secrets_file`. The
+default is the readwrite file on purpose: resources that derive CI variables
+for external consumers are fed by write-valued `var.*`, so a plan against
+readonly substitutes would diff on them forever and the alarm would never be
+green. Point `secrets_file`/`environment` at a readonly pair only if the
+consumer repo has no such resources.
+
+```yaml
+include:
+  - project: eiseron/stack/ci
+    file: /templates/terraform-drift.yml
+    ref: v0.1.19
+
+stages:
+  - plan
+  - apply
+  - drift
+```
+
+Inputs:
+
+| input | default | purpose |
+|-------|---------|---------|
+| `chdir` | `.` | directory of the Terraform root module to check |
+| `image_tag` | `v0.1.13` | `public-image-bases/terraform-tools` tag the job runs on |
+| `stage` | `drift` | pipeline stage for the job (the consumer declares it after apply) |
+| `secrets_file` | `secrets.readwrite.enc.env` | SOPS env file decrypted into the job environment |
+| `environment` | `production` | environment whose protected variables (`AGE_KEY`) the job receives |
+
 ## templates/ansible-collection.yml
 
 `ansible-collection` job — builds the Ansible collection, installs it, and
