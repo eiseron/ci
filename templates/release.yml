@@ -16,9 +16,10 @@ spec:
 # The tagging logic lives in the eiseron_automation gem (eiseron/stack/
 # automation), installed here from a pinned git tag. When the version file
 # changes on a protected ref (main / release/*), `eiseron release tag` reads
-# the version, lifts tag protection with the protected EISERON_STACK_TOKEN,
-# creates v<version> from the reviewed commit, and restores protection. A tag
-# therefore always maps to a reviewed MR that changed the version file.
+# the version and creates v<version> from the reviewed commit via the GitLab
+# API, using RELEASE_TOKEN (a CI/CD variable provisioned per consumer with a
+# token that has Developer+ on the repo). A tag therefore always maps to a
+# reviewed MR that changed the version file.
 #
 # Usage in a consumer .gitlab-ci.yml:
 #   include:
