@@ -3,6 +3,9 @@ spec:
     playbook:
       default: ""
       description: "Optional playbook to syntax-check after installing the built collection. Empty skips the check."
+    name:
+      default: ""
+      description: "Optional job-name suffix so multiple includes (one per playbook) don't collide."
     image_tag:
       default: "v0.1.3"
       description: "public-image-bases python-ansible tag to run the job on."
@@ -10,7 +13,7 @@ spec:
       default: "validate"
       description: "Pipeline stage for the job (consumer must declare it)."
 ---
-ansible-collection:
+ansible-collection$[[ inputs.name ]]:
   stage: $[[ inputs.stage ]]
   image:
     name: registry.gitlab.com/eiseron/stack/public-image-bases/python-ansible:$[[ inputs.image_tag ]]

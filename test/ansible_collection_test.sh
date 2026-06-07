@@ -32,3 +32,24 @@ if ! grep -q -- "--syntax-check playbooks/preview-host.yml" "$work/calls"; then
 fi
 
 echo "PASS: ansible-collection playbook conditional"
+
+if ! grep -qF 'ansible-collection$[[ inputs.name ]]:' "$template"; then
+  echo "FAIL: job name does not use the inputs.name suffix"
+  exit 1
+fi
+
+name_job() {
+  echo 'ansible-collection$[[ inputs.name ]]:' | awk -v v="$1" '{gsub(/\$\[\[ inputs\.name \]\]/, v); print}'
+}
+
+if [ "$(name_job '')" != "ansible-collection:" ]; then
+  echo "FAIL: empty name input should yield 'ansible-collection:'"
+  exit 1
+fi
+
+if [ "$(name_job '-prod-host')" != "ansible-collection-prod-host:" ]; then
+  echo "FAIL: name input suffix not applied to job name"
+  exit 1
+fi
+
+echo "PASS: ansible-collection name suffix"
