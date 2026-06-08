@@ -6,6 +6,9 @@
 # repo to deploy the pre-built image. Assets land in two places from one compile:
 # the image (Dockerfile.prod COPYs priv/static, never re-digests) and the CDN.
 #
+# The upload and trigger steps are `eiseron prod upload` / `eiseron prod trigger`
+# from the automation gem (tested logic, dormant-skip when creds are unset).
+#
 # Usage in a consumer .gitlab-ci.yml:
 #   include:
 #     - project: eiseron/stack/ci
@@ -26,7 +29,10 @@ spec:
   inputs:
     image_tag:
       default: "v0.1.15"
-      description: "public-image-bases tag: elixir-builder (build) + alpine-deploy (upload/trigger, aws-cli >= v0.1.15)."
+      description: "public-image-bases tag: elixir-builder (build) + python-ansible (upload/trigger, carries ruby)."
+    automation_ref:
+      default: "v0.8.0"
+      description: "eiseron/stack/automation tag providing `eiseron prod upload` and `prod trigger`."
     app_name:
       default: "app"
       description: "Product slug; used for logging and the deploy environment."
@@ -54,6 +60,17 @@ spec:
   rules:
     - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/
 
+.eiseron-prod-gem:
+  image:
+    name: registry.gitlab.com/eiseron/stack/public-image-bases/python-ansible:$[[ inputs.image_tag ]]
+  tags:
+    - self-hosted
+  variables:
+    GIT_STRATEGY: none
+  before_script:
+    - gem install specific_install --no-document
+    - gem specific_install https://gitlab.com/eiseron/stack/automation.git -b "$[[ inputs.automation_ref ]]"
+
 prod-build:
   extends: .eiseron-prod-tag
   stage: $[[ inputs.build_stage ]]
@@ -78,10 +95,6 @@ prod-build:
       paths:
         - _build/prod/
   script:
-    - |
-      if [ -z "${AWS_ACCESS_KEY_ID:-}" ]; then
-        echo "WARNING: AWS_ACCESS_KEY_ID is unset — prod-assets-upload and the dependent prod-trigger will be skipped. This tag builds the image but does NOT upload assets or deploy."
-      fi
     - mix deps.get --only prod
     - mix deps.compile
     - mix assets.deploy
@@ -105,61 +118,33 @@ prod-build:
     expire_in: 1 day
 
 prod-assets-upload:
+  extends:
+    - .eiseron-prod-gem
+    - .eiseron-prod-tag
   stage: $[[ inputs.upload_stage ]]
-  image:
-    name: registry.gitlab.com/eiseron/stack/public-image-bases/alpine-deploy:$[[ inputs.image_tag ]]
-  tags:
-    - self-hosted
   needs:
     - job: prod-build
       artifacts: true
   variables:
-    AWS_DEFAULT_REGION: auto
+    PROD_ASSETS_DIR: $[[ inputs.assets_dir ]]
+    PROD_ASSETS_BUCKET: $[[ inputs.assets_bucket ]]
+    PROD_SOURCEMAPS_BUCKET: $[[ inputs.sourcemaps_bucket ]]
+  before_script:
+    - gem install specific_install --no-document
+    - gem specific_install https://gitlab.com/eiseron/stack/automation.git -b "$[[ inputs.automation_ref ]]"
+    - gem install aws-sdk-s3 -v "~> 1.215" --no-document
   script:
-    - >
-      aws s3 sync "$[[ inputs.assets_dir ]]" "s3://$[[ inputs.assets_bucket ]]"
-      --endpoint-url "https://${CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com"
-      --exclude "*.map"
-      --no-progress
-    - >
-      aws s3 sync "$[[ inputs.assets_dir ]]" "s3://$[[ inputs.sourcemaps_bucket ]]"
-      --endpoint-url "https://${CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com"
-      --exclude "*"
-      --include "*.map"
-      --no-progress
-  rules:
-    - if: $AWS_ACCESS_KEY_ID == null || $AWS_ACCESS_KEY_ID == ""
-      when: never
-    - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/
+    - eiseron prod upload
 
 prod-trigger:
+  extends:
+    - .eiseron-prod-gem
+    - .eiseron-prod-tag
   stage: $[[ inputs.trigger_stage ]]
-  image:
-    name: registry.gitlab.com/eiseron/stack/public-image-bases/alpine-deploy:$[[ inputs.image_tag ]]
-  tags:
-    - self-hosted
   needs:
     - job: prod-build
       artifacts: false
     - job: prod-assets-upload
       artifacts: false
-  variables:
-    GIT_STRATEGY: none
   script:
-    - |
-      PROJECT_ENC=$(printf '%s' "$PROD_DEPLOYER_PROJECT" | sed 's|/|%2F|g')
-      RESP=$(curl --fail --silent --show-error -X POST \
-        -F "token=$PROD_DEPLOYER_TRIGGER_TOKEN" \
-        -F "ref=main" \
-        -F "variables[PROD_TAG]=$CI_COMMIT_TAG" \
-        -F "variables[PROD_IMAGE]=$CI_REGISTRY_IMAGE/prod:$CI_COMMIT_TAG" \
-        -F "variables[PROD_PROJECT]=$CI_PROJECT_PATH" \
-        -F "variables[PROD_ACTION]=deploy" \
-        "https://gitlab.com/api/v4/projects/$PROJECT_ENC/trigger/pipeline")
-      echo "$RESP" | jq -r '"Downstream pipeline: \(.web_url)"'
-  rules:
-    - if: $PROD_DEPLOYER_PROJECT == null || $PROD_DEPLOYER_PROJECT == ""
-      when: never
-    - if: $PROD_DEPLOYER_TRIGGER_TOKEN == null || $PROD_DEPLOYER_TRIGGER_TOKEN == ""
-      when: never
-    - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/
+    - eiseron prod trigger
