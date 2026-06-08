@@ -17,7 +17,7 @@
 #   stages: [deploy]
 #
 # CI vars the consumer must provide (Terraform-managed in <product>-ops):
-#   PROD_SSH_PRIVATE_KEY        deploy key for the production host (file/var)
+#   PROD_SSH_PRIVATE_KEY        deploy key for the production host (File-type variable; holds the OpenSSH private key)
 #   PROD_DEPLOY_READ_TOKEN      read_api token on the product repo (tag lookup)
 #   kamal's registry + secret env referenced by config/deploy.yml
 spec:
@@ -45,8 +45,9 @@ prod-deploy:
     - gem install specific_install --no-document
     - gem specific_install https://gitlab.com/eiseron/stack/automation.git -b "$[[ inputs.automation_ref ]]"
     - eval "$(ssh-agent -s)"
-    - printf '%s\n' "$PROD_SSH_PRIVATE_KEY" | ssh-add -
     - install -d -m 700 ~/.ssh
+    - install -m 600 "$PROD_SSH_PRIVATE_KEY" ~/.ssh/prod_deploy_key
+    - ssh-add ~/.ssh/prod_deploy_key
     - printf 'Host *\n  StrictHostKeyChecking accept-new\n' > ~/.ssh/config
   script:
     - eiseron prod deploy
