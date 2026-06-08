@@ -31,7 +31,7 @@ spec:
       default: "v0.1.15"
       description: "public-image-bases tag: elixir-builder (build) + python-ansible (upload/trigger, carries ruby)."
     automation_ref:
-      default: "v0.8.0"
+      default: "v0.8.1"
       description: "eiseron/stack/automation tag providing `eiseron prod upload` and `prod trigger`."
     app_name:
       default: "app"
