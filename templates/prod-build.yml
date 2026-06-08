@@ -97,6 +97,8 @@ prod-build:
   script:
     - mix deps.get --only prod
     - mix deps.compile
+    - mix compile
+    - mix assets.setup
     - mix assets.deploy
     - cp "$[[ inputs.dockerfile ]]" Dockerfile
     - AUTH_B64=$(printf 'gitlab-ci-token:%s' "$CI_JOB_TOKEN" | base64 | tr -d '\n')
