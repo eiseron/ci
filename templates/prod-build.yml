@@ -13,12 +13,12 @@
 #       ref: vX.Y.Z
 #       inputs:
 #         app_name: afinados
-#         r2_endpoint: https://<account>.r2.cloudflarestorage.com
 #         assets_bucket: afinados-assets
 #         sourcemaps_bucket: afinados-sourcemaps
 #   stages: [build, upload, deploy]
 #
 # CI vars the consumer must provide (Terraform-managed in <product>-ops):
+#   CLOUDFLARE_ACCOUNT_ID                      builds the R2 S3 endpoint
 #   AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY  R2 token scoped to the buckets
 #   PROD_DEPLOYER_PROJECT                      the -ops project path
 #   PROD_DEPLOYER_TRIGGER_TOKEN                pipeline trigger token for -ops
@@ -36,8 +36,6 @@ spec:
     assets_dir:
       default: "priv/static"
       description: "Digested static root (mix assets.deploy output) synced to the CDN; Phoenix static_url is global so the whole tree (assets, images, fonts) must be served from the CDN."
-    r2_endpoint:
-      description: "Cloudflare R2 S3 endpoint, e.g. https://<account>.r2.cloudflarestorage.com."
     assets_bucket:
       description: "R2 bucket served at the CDN host (public assets; excludes *.map)."
     sourcemaps_bucket:
@@ -120,12 +118,12 @@ prod-assets-upload:
   script:
     - >
       aws s3 sync "$[[ inputs.assets_dir ]]" "s3://$[[ inputs.assets_bucket ]]"
-      --endpoint-url "$[[ inputs.r2_endpoint ]]"
+      --endpoint-url "https://${CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com"
       --exclude "*.map"
       --no-progress
     - >
       aws s3 sync "$[[ inputs.assets_dir ]]" "s3://$[[ inputs.sourcemaps_bucket ]]"
-      --endpoint-url "$[[ inputs.r2_endpoint ]]"
+      --endpoint-url "https://${CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com"
       --exclude "*"
       --include "*.map"
       --no-progress
