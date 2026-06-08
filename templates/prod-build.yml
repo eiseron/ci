@@ -1,0 +1,167 @@
+# Production build, on a product repo, driven by a semver tag.
+#
+# On a `vX.Y.Z` tag this compiles the Phoenix assets once, builds the release
+# image with kaniko, uploads the digested assets to Cloudflare R2 (served at the
+# CDN host) with sourcemaps to a private bucket, then triggers the product's -ops
+# repo to deploy the pre-built image. Assets land in two places from one compile:
+# the image (Dockerfile.prod COPYs priv/static, never re-digests) and the CDN.
+#
+# Usage in a consumer .gitlab-ci.yml:
+#   include:
+#     - project: eiseron/stack/ci
+#       file: /templates/prod-build.yml
+#       ref: vX.Y.Z
+#       inputs:
+#         app_name: afinados
+#         r2_endpoint: https://<account>.r2.cloudflarestorage.com
+#         assets_bucket: afinados-assets
+#         sourcemaps_bucket: afinados-sourcemaps
+#   stages: [build, upload, deploy]
+#
+# CI vars the consumer must provide (Terraform-managed in <product>-ops):
+#   AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY  R2 token scoped to the buckets
+#   PROD_DEPLOYER_PROJECT                      the -ops project path
+#   PROD_DEPLOYER_TRIGGER_TOKEN                pipeline trigger token for -ops
+spec:
+  inputs:
+    image_tag:
+      default: "v0.1.15"
+      description: "public-image-bases tag: elixir-builder (build) + alpine-deploy (upload/trigger, aws-cli >= v0.1.15)."
+    app_name:
+      default: "app"
+      description: "Product slug; used for logging and the deploy environment."
+    dockerfile:
+      default: ".docker/Dockerfile.prod"
+      description: "Path to the production release Dockerfile, built with kaniko."
+    assets_dir:
+      default: "priv/static/assets"
+      description: "Digested asset directory produced by mix assets.deploy."
+    r2_endpoint:
+      description: "Cloudflare R2 S3 endpoint, e.g. https://<account>.r2.cloudflarestorage.com."
+    assets_bucket:
+      description: "R2 bucket served at the CDN host (public assets; excludes *.map)."
+    sourcemaps_bucket:
+      description: "R2 bucket for sourcemaps (private; only *.map)."
+    build_stage:
+      default: "build"
+      description: "Stage for the image build job (the consumer must declare it)."
+    upload_stage:
+      default: "upload"
+      description: "Stage for the asset upload job."
+    trigger_stage:
+      default: "deploy"
+      description: "Stage for the -ops trigger job."
+---
+.eiseron-prod-tag:
+  rules:
+    - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/
+
+prod-build:
+  extends: .eiseron-prod-tag
+  stage: $[[ inputs.build_stage ]]
+  image:
+    name: registry.gitlab.com/eiseron/stack/public-image-bases/elixir-builder:$[[ inputs.image_tag ]]
+  tags:
+    - self-hosted
+  variables:
+    MIX_ENV: prod
+    DOCKER_CONFIG: "/kaniko/.docker"
+  cache:
+    - key:
+        prefix: "prod-deps"
+        files:
+          - mix.lock
+      paths:
+        - deps/
+    - key:
+        prefix: "prod-build"
+        files:
+          - mix.lock
+      paths:
+        - _build/prod/
+  script:
+    - |
+      if [ -z "${AWS_ACCESS_KEY_ID:-}" ]; then
+        echo "WARNING: AWS_ACCESS_KEY_ID is unset — prod-assets-upload and the dependent prod-trigger will be skipped. This tag builds the image but does NOT upload assets or deploy."
+      fi
+    - mix deps.get --only prod
+    - mix deps.compile
+    - mix assets.deploy
+    - cp "$[[ inputs.dockerfile ]]" Dockerfile
+    - AUTH_B64=$(printf 'gitlab-ci-token:%s' "$CI_JOB_TOKEN" | base64 | tr -d '\n')
+    - mkdir -p "$DOCKER_CONFIG"
+    - echo "{\"auths\":{\"$CI_REGISTRY\":{\"auth\":\"$AUTH_B64\"}}}" > "$DOCKER_CONFIG/config.json"
+    - >
+      executor
+      --context "$CI_PROJECT_DIR"
+      --dockerfile "$CI_PROJECT_DIR/Dockerfile"
+      --destination "$CI_REGISTRY_IMAGE/prod:$CI_COMMIT_TAG"
+      --destination "$CI_REGISTRY_IMAGE/prod:latest"
+      --cache=true
+      --cache-repo="$CI_REGISTRY_IMAGE/kaniko-cache"
+      --cache-ttl=168h
+      --push-retry=3
+  artifacts:
+    paths:
+      - $[[ inputs.assets_dir ]]
+    expire_in: 1 day
+
+prod-assets-upload:
+  stage: $[[ inputs.upload_stage ]]
+  image:
+    name: registry.gitlab.com/eiseron/stack/public-image-bases/alpine-deploy:$[[ inputs.image_tag ]]
+  tags:
+    - self-hosted
+  needs:
+    - job: prod-build
+      artifacts: true
+  variables:
+    AWS_DEFAULT_REGION: auto
+  script:
+    - >
+      aws s3 sync "$[[ inputs.assets_dir ]]" "s3://$[[ inputs.assets_bucket ]]/assets"
+      --endpoint-url "$[[ inputs.r2_endpoint ]]"
+      --exclude "*.map"
+      --no-progress
+    - >
+      aws s3 sync "$[[ inputs.assets_dir ]]" "s3://$[[ inputs.sourcemaps_bucket ]]/assets"
+      --endpoint-url "$[[ inputs.r2_endpoint ]]"
+      --exclude "*"
+      --include "*.map"
+      --no-progress
+  rules:
+    - if: $AWS_ACCESS_KEY_ID == null || $AWS_ACCESS_KEY_ID == ""
+      when: never
+    - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/
+
+prod-trigger:
+  stage: $[[ inputs.trigger_stage ]]
+  image:
+    name: registry.gitlab.com/eiseron/stack/public-image-bases/alpine-deploy:$[[ inputs.image_tag ]]
+  tags:
+    - self-hosted
+  needs:
+    - job: prod-build
+      artifacts: false
+    - job: prod-assets-upload
+      artifacts: false
+  variables:
+    GIT_STRATEGY: none
+  script:
+    - |
+      PROJECT_ENC=$(printf '%s' "$PROD_DEPLOYER_PROJECT" | sed 's|/|%2F|g')
+      RESP=$(curl --fail --silent --show-error -X POST \
+        -F "token=$PROD_DEPLOYER_TRIGGER_TOKEN" \
+        -F "ref=main" \
+        -F "variables[PROD_TAG]=$CI_COMMIT_TAG" \
+        -F "variables[PROD_IMAGE]=$CI_REGISTRY_IMAGE/prod:$CI_COMMIT_TAG" \
+        -F "variables[PROD_PROJECT]=$CI_PROJECT_PATH" \
+        -F "variables[PROD_ACTION]=deploy" \
+        "https://gitlab.com/api/v4/projects/$PROJECT_ENC/trigger/pipeline")
+      echo "$RESP" | jq -r '"Downstream pipeline: \(.web_url)"'
+  rules:
+    - if: $PROD_DEPLOYER_PROJECT == null || $PROD_DEPLOYER_PROJECT == ""
+      when: never
+    - if: $PROD_DEPLOYER_TRIGGER_TOKEN == null || $PROD_DEPLOYER_TRIGGER_TOKEN == ""
+      when: never
+    - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/

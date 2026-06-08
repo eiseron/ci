@@ -1,0 +1,58 @@
+# Production deploy, on a product's -ops repo, driven by a trigger from the
+# product's prod-build pipeline.
+#
+# The product builds + pushes the release image and triggers this pipeline with
+# PROD_TAG / PROD_IMAGE / PROD_PROJECT / PROD_ACTION=deploy. `eiseron prod deploy`
+# refuses to auto-deploy a tag that is not the product's highest release (so an
+# old hotfix tag cannot overwrite a newer version), then runs
+# `kamal deploy --version=<tag> --skip-push` against the pre-built image. Kamal
+# reads servers, registry and the migrate hook from config/deploy.yml in this
+# repo. A rollback is a manual web pipeline with PROD_TAG + PROD_DEPLOY_ALLOW_OLD.
+#
+# Usage in a consumer .gitlab-ci.yml:
+#   include:
+#     - project: eiseron/stack/ci
+#       file: /templates/prod-deploy.yml
+#       ref: vX.Y.Z
+#   stages: [deploy]
+#
+# CI vars the consumer must provide (Terraform-managed in <product>-ops):
+#   PROD_SSH_PRIVATE_KEY        deploy key for the production host (file/var)
+#   PROD_DEPLOY_READ_TOKEN      read_api token on the product repo (tag lookup)
+#   kamal's registry + secret env referenced by config/deploy.yml
+spec:
+  inputs:
+    image_tag:
+      default: "v0.1.15"
+      description: "public-image-bases ops image tag (carries kamal + docker + ssh + ruby)."
+    automation_ref:
+      default: "v0.7.0"
+      description: "eiseron/stack/automation tag providing `eiseron prod deploy`."
+    deploy_stage:
+      default: "deploy"
+      description: "Pipeline stage for the deploy job (the consumer must declare it)."
+---
+prod-deploy:
+  stage: $[[ inputs.deploy_stage ]]
+  image:
+    name: registry.gitlab.com/eiseron/stack/public-image-bases/ops:$[[ inputs.image_tag ]]
+  tags:
+    - self-hosted
+  environment:
+    name: production
+  resource_group: production
+  before_script:
+    - gem install specific_install --no-document
+    - gem specific_install https://gitlab.com/eiseron/stack/automation.git -b "$[[ inputs.automation_ref ]]"
+    - eval "$(ssh-agent -s)"
+    - printf '%s\n' "$PROD_SSH_PRIVATE_KEY" | ssh-add -
+    - install -d -m 700 ~/.ssh
+    - printf 'Host *\n  StrictHostKeyChecking accept-new\n' > ~/.ssh/config
+  script:
+    - eiseron prod deploy
+  rules:
+    - if: '$PROD_TAG && $PROD_ACTION == "deploy"'
+      variables:
+        PROD_DEPLOY_ALLOW_OLD: ""
+    - if: $CI_PIPELINE_SOURCE == "web" && $PROD_TAG
+      when: manual
