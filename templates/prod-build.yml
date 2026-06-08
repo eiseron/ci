@@ -34,8 +34,8 @@ spec:
       default: ".docker/Dockerfile.prod"
       description: "Path to the production release Dockerfile, built with kaniko."
     assets_dir:
-      default: "priv/static/assets"
-      description: "Digested asset directory produced by mix assets.deploy."
+      default: "priv/static"
+      description: "Digested static root (mix assets.deploy output) synced to the CDN; Phoenix static_url is global so the whole tree (assets, images, fonts) must be served from the CDN."
     r2_endpoint:
       description: "Cloudflare R2 S3 endpoint, e.g. https://<account>.r2.cloudflarestorage.com."
     assets_bucket:
@@ -119,12 +119,12 @@ prod-assets-upload:
     AWS_DEFAULT_REGION: auto
   script:
     - >
-      aws s3 sync "$[[ inputs.assets_dir ]]" "s3://$[[ inputs.assets_bucket ]]/assets"
+      aws s3 sync "$[[ inputs.assets_dir ]]" "s3://$[[ inputs.assets_bucket ]]"
       --endpoint-url "$[[ inputs.r2_endpoint ]]"
       --exclude "*.map"
       --no-progress
     - >
-      aws s3 sync "$[[ inputs.assets_dir ]]" "s3://$[[ inputs.sourcemaps_bucket ]]/assets"
+      aws s3 sync "$[[ inputs.assets_dir ]]" "s3://$[[ inputs.sourcemaps_bucket ]]"
       --endpoint-url "$[[ inputs.r2_endpoint ]]"
       --exclude "*"
       --include "*.map"
