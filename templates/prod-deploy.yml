@@ -44,6 +44,7 @@ prod-deploy:
   before_script:
     - gem install specific_install --no-document
     - gem specific_install https://gitlab.com/eiseron/stack/automation.git -b "$[[ inputs.automation_ref ]]"
+    - export PATH="$(ruby -e 'print Gem.user_dir')/bin:$PATH"
     - eval "$(ssh-agent -s)"
     - install -d -m 700 ~/.ssh
     - install -m 600 "$PROD_SSH_PRIVATE_KEY" ~/.ssh/prod_deploy_key
