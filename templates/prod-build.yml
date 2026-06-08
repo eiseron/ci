@@ -110,6 +110,7 @@ prod-build:
       --dockerfile "$CI_PROJECT_DIR/Dockerfile"
       --destination "$CI_REGISTRY_IMAGE/prod:$CI_COMMIT_TAG"
       --destination "$CI_REGISTRY_IMAGE/prod:latest"
+      --label "service=$[[ inputs.app_name ]]"
       --cache=true
       --cache-repo="$CI_REGISTRY_IMAGE/kaniko-cache"
       --cache-ttl=168h
