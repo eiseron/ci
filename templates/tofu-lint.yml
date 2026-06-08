@@ -1,0 +1,28 @@
+spec:
+  inputs:
+    chdir:
+      default: "."
+      description: "Directory tree scanned for .tf files."
+    image_tag:
+      default: "v0.1.16"
+      description: "public-image-bases iac tag (ships the eiseron gem)."
+    stage:
+      default: "lint"
+      description: "Pipeline stage for the job (consumer must declare it)."
+---
+tofu-lint:
+  stage: $[[ inputs.stage ]]
+  image:
+    name: registry.gitlab.com/eiseron/stack/public-image-bases/iac:$[[ inputs.image_tag ]]
+    entrypoint: [""]
+  tags:
+    - self-hosted
+  cache: []
+  script:
+    - cd "$[[ inputs.chdir ]]"
+    - eiseron tofu lint
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      changes:
+        - "**/*.tf"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH

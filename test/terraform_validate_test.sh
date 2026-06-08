@@ -14,7 +14,7 @@ want() {
 
 want 'terraform-validate$[[ inputs.name ]]:' "job name does not use the name suffix input"
 want "name:" "name input is missing"
-want 'terraform -chdir="$[[ inputs.chdir ]]" validate' "validate step is missing"
-want 'terraform -chdir="$[[ inputs.chdir ]]" fmt -check -recursive' "fmt check step is missing"
+want 'tofu -chdir="$[[ inputs.chdir ]]" validate' "validate step is missing"
+want 'tofu -chdir="$[[ inputs.chdir ]]" fmt -check -recursive' "fmt check step is missing"
 
 echo "PASS: terraform-validate name-suffix wiring"

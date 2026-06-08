@@ -4,8 +4,8 @@ spec:
       default: "."
       description: "Directory of the Terraform root module to check."
     image_tag:
-      default: "v0.1.13"
-      description: "public-image-bases terraform-tools tag to run the job on."
+      default: "v0.1.16"
+      description: "public-image-bases iac tag to run the job on."
     stage:
       default: "drift"
       description: "Pipeline stage for the job (consumer must declare it after apply, so the main-branch run asserts convergence)."
@@ -19,7 +19,7 @@ spec:
 terraform-drift:
   stage: $[[ inputs.stage ]]
   image:
-    name: registry.gitlab.com/eiseron/stack/public-image-bases/terraform-tools:$[[ inputs.image_tag ]]
+    name: registry.gitlab.com/eiseron/stack/public-image-bases/iac:$[[ inputs.image_tag ]]
     entrypoint: [""]
   tags:
     - self-hosted
@@ -32,10 +32,10 @@ terraform-drift:
     SECRETS_FILE: $[[ inputs.secrets_file ]]
   before_script:
     - eval "$(SOPS_AGE_KEY="$AGE_KEY" sops --output-type json -d "$SECRETS_FILE" | jq -r 'to_entries[] | "export \(.key)=\(.value | @sh)"')"
-    - terraform -chdir="$[[ inputs.chdir ]]" init -input=false
+    - tofu -chdir="$[[ inputs.chdir ]]" init -input=false
   script:
     - |
-      terraform -chdir="$[[ inputs.chdir ]]" plan -detailed-exitcode -input=false -lock=false || {
+      tofu -chdir="$[[ inputs.chdir ]]" plan -detailed-exitcode -input=false -lock=false || {
         code=$?
         if [ "$code" -eq 2 ]; then
           echo "DRIFT: state differs from configuration. Apply the pending changes (did a SOPS edit miss its apply?)"

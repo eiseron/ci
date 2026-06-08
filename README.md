@@ -60,14 +60,15 @@ Inputs:
 ## templates/terraform-validate.yml
 
 `terraform-validate` job — `init -backend=false` + `fmt -check -recursive` +
-`validate` for a Terraform module, on the shared `terraform-tools` image
-(whose `terraform` entrypoint is overridden so the shell runs the script).
+`validate` for an OpenTofu module, on the shared `iac` image
+(which ships the `tofu` binary; its entrypoint is overridden so the shell
+runs the script).
 
 ```yaml
 include:
   - project: eiseron/stack/ci
     file: /templates/terraform-validate.yml
-    ref: v0.1.3
+    ref: v0.1.20
     inputs:
       chdir: modules/preview_host
 
@@ -79,9 +80,36 @@ Inputs:
 
 | input | default | purpose |
 |-------|---------|---------|
-| `chdir` | `.` | directory of the Terraform module/config to validate |
-| `image_tag` | `v0.1.3` | `public-image-bases/terraform-tools` tag the job runs on |
+| `chdir` | `.` | directory of the OpenTofu module/config to validate |
+| `image_tag` | `v0.1.16` | `public-image-bases/iac` tag the job runs on |
 | `stage` | `validate` | pipeline stage for the job (the consumer must declare it) |
+
+## templates/tofu-lint.yml
+
+`tofu-lint` job — runs `eiseron tofu lint` (from the `automation` gem,
+bundled in the `iac` image), which fails when any `.tf` file
+contains a comment (`#`, `//`, or `/* */`). String literals are stripped and
+heredoc bodies are skipped, so URLs, hex colors, and `#`/`//` inside embedded
+scripts or policies are not flagged. Rationale belongs in the merge request
+description, not in the source.
+
+```yaml
+include:
+  - project: eiseron/stack/ci
+    file: /templates/tofu-lint.yml
+    ref: v0.1.20
+
+stages:
+  - lint
+```
+
+Inputs:
+
+| input | default | purpose |
+|-------|---------|---------|
+| `chdir` | `.` | directory tree scanned for `.tf` files |
+| `image_tag` | `v0.1.16` | `public-image-bases/iac` tag the job runs on |
+| `stage` | `lint` | pipeline stage for the job (the consumer must declare it) |
 
 ## templates/terraform-drift.yml
 
@@ -122,8 +150,8 @@ Inputs:
 
 | input | default | purpose |
 |-------|---------|---------|
-| `chdir` | `.` | directory of the Terraform root module to check |
-| `image_tag` | `v0.1.13` | `public-image-bases/terraform-tools` tag the job runs on |
+| `chdir` | `.` | directory of the OpenTofu root module to check |
+| `image_tag` | `v0.1.16` | `public-image-bases/iac` tag the job runs on |
 | `stage` | `drift` | pipeline stage for the job (the consumer declares it after apply) |
 | `secrets_file` | `secrets.readwrite.enc.env` | SOPS env file decrypted into the job environment |
 | `environment` | `production` | environment whose protected variables (`AGE_KEY`) the job receives |
