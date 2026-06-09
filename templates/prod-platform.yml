@@ -3,18 +3,15 @@ spec:
     image_tag:
       default: "v0.1.15"
       description: "public-image-bases ops image tag (kamal + docker + ssh + ruby + git)."
-    automation_ref:
-      default: "v0.9.0"
-      description: "eiseron/stack/automation tag providing `eiseron prod deploy`."
     provisioning_ref:
       default: "v0.37.0"
-      description: "eiseron/stack/provisioning tag carrying the canonical kamal/app manifest."
-    deploy_stage:
-      default: "deploy"
-      description: "Pipeline stage for the deploy job (the consumer must declare it)."
+      description: "eiseron/stack/provisioning tag carrying the canonical kamal/platform manifest."
+    platform_stage:
+      default: "platform"
+      description: "Pipeline stage for the platform job (the consumer must declare it)."
 ---
-prod-deploy:
-  stage: $[[ inputs.deploy_stage ]]
+prod-platform:
+  stage: $[[ inputs.platform_stage ]]
   image:
     name: registry.gitlab.com/eiseron/stack/public-image-bases/ops:$[[ inputs.image_tag ]]
   tags:
@@ -25,21 +22,16 @@ prod-deploy:
   variables:
     GIT_STRATEGY: none
   before_script:
-    - gem install specific_install --no-document
-    - gem specific_install https://gitlab.com/eiseron/stack/automation.git -b "$[[ inputs.automation_ref ]]"
-    - export PATH="$(ruby -e 'print Gem.user_dir')/bin:$PATH"
     - git clone --depth 1 --branch "$[[ inputs.provisioning_ref ]]" https://gitlab.com/eiseron/stack/provisioning.git /tmp/provisioning
-    - cp -r /tmp/provisioning/kamal/app/. .
+    - cp -r /tmp/provisioning/kamal/platform/. .
     - eval "$(ssh-agent -s)"
     - install -d -m 700 ~/.ssh
     - install -m 600 "$PROD_SSH_PRIVATE_KEY" ~/.ssh/prod_deploy_key
     - ssh-add ~/.ssh/prod_deploy_key
     - printf 'Host *\n  StrictHostKeyChecking accept-new\n' > ~/.ssh/config
   script:
-    - eiseron prod deploy
+    - kamal accessory boot db --version="$CI_COMMIT_SHORT_SHA"
+    - kamal proxy boot --version="$CI_COMMIT_SHORT_SHA"
   rules:
-    - if: '$PROD_TAG && $PROD_ACTION == "deploy"'
-      variables:
-        PROD_DEPLOY_ALLOW_OLD: ""
-    - if: $CI_PIPELINE_SOURCE == "web" && $PROD_TAG
+    - if: $CI_PIPELINE_SOURCE == "web"
       when: manual

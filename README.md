@@ -370,3 +370,68 @@ Inputs:
 | `versions_file` | `versions.json` | versions manifest path in the site repo |
 | `site_branch` | `main` | branch of the site repo to push to |
 | `stage` | `publish` | pipeline stage (the consumer must declare it) |
+
+## templates/prod-platform.yml
+
+Platform bootstrap for the shared production host, run from `eiseron-ops`.
+Clones the public `provisioning` at `provisioning_ref`, renders the canonical
+`kamal/platform` manifest from env, and boots the shared services with
+`kamal accessory boot db` (shared postgres on the encrypted root) and
+`kamal proxy boot` (kamal-proxy, the shared proxy every product registers
+with). Per-product DB + login roles are created separately (`eiseron prod
+tenant`), between this and the product deploys. Web-manual only.
+
+```yaml
+# in eiseron-ops
+include:
+  - project: eiseron/stack/ci
+    file: /templates/prod-platform.yml
+    ref: vX.Y.Z
+stages: [platform]
+```
+
+CI vars the consumer provides (Terraform-managed in `eiseron-ops`):
+
+| var | purpose |
+| --- | --- |
+| `PROD_SSH_PRIVATE_KEY` | File var: OpenSSH private key for the prod host |
+| `PROD_HOST` | prod host IP/name (manifest) |
+| `POSTGRES_PASSWORD` | shared postgres superuser password |
+| `KAMAL_REGISTRY_USERNAME` / `KAMAL_REGISTRY_PASSWORD` | registry creds |
+
+Optional (manifest defaults): `PG_ADMIN_USER`, `KAMAL_REGISTRY_SERVER`, `DEPLOY_SSH_USER`, `PLATFORM_NOOP_IMAGE`.
+
+## templates/prod-deploy.yml
+
+App-only product deploy, triggered by the product's `prod-build` pipeline
+(`PROD_TAG` / `PROD_PROJECT` / `PROD_ACTION=deploy`). Clones the public
+`provisioning` at `provisioning_ref`, renders the canonical `kamal/app`
+manifest from env, and runs `eiseron prod deploy` (kamal deploy of the
+pre-built image, anti-downgrade guard). The app registers with the shared
+kamal-proxy and connects to the platform's shared postgres via `DATABASE_URL`.
+
+```yaml
+# in <product>-ops
+include:
+  - project: eiseron/stack/ci
+    file: /templates/prod-deploy.yml
+    ref: vX.Y.Z
+stages: [deploy]
+```
+
+CI vars the consumer provides (Terraform-managed in `<product>-ops`):
+
+| var | purpose |
+| --- | --- |
+| `PROD_SSH_PRIVATE_KEY` | File var: OpenSSH private key for the prod host |
+| `PROD_DEPLOY_READ_TOKEN` | read_api token on the product repo (latest-tag guard) |
+| `PROD_PROJECT` | product repo path (latest-tag guard) |
+| `PROD_HOST` | prod host IP/name (manifest) |
+| `APP_SERVICE` | kamal service / `bin` name (manifest + migrate hook) |
+| `APP_IMAGE` | image repo path under the registry (manifest) |
+| `APP_HOST` | public host, e.g. `app.example.com` (manifest + proxy) |
+| `APP_RELEASE_MODULE` | Elixir release module for the migrate hook |
+| `KAMAL_REGISTRY_USERNAME` / `KAMAL_REGISTRY_PASSWORD` | registry creds |
+| `SECRET_KEY_BASE` / `DATABASE_URL` | app secrets |
+
+Optional (manifest defaults): `PROXY_SSL`, `KAMAL_REGISTRY_SERVER`, `APP_PORT`, `DEPLOY_SSH_USER`.
