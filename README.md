@@ -408,7 +408,10 @@ App-only product deploy, triggered by the product's `prod-build` pipeline
 `provisioning` at `provisioning_ref`, renders the canonical `kamal/app`
 manifest from env, and runs `eiseron prod deploy` (kamal deploy of the
 pre-built image, anti-downgrade guard). The app registers with the shared
-kamal-proxy and connects to the platform's shared postgres via `DATABASE_URL`.
+kamal-proxy and connects to the platform's shared postgres. `eiseron prod
+deploy` idempotently re-applies the managed `PROD_TENANT_PASSWORD` to the role
+(a no-op on a normal deploy) and assembles `DATABASE_URL` into the kamal
+subprocess only, so the URL is never a CI var, log line, or state entry.
 
 ```yaml
 # in <product>-ops
@@ -416,8 +419,19 @@ include:
   - project: eiseron/stack/ci
     file: /templates/prod-deploy.yml
     ref: vX.Y.Z
+    inputs:
+      app_service: app
+      app_image: org/group/app/prod
+      app_host: app.example.com
+      app_release_module: App
+      tenant_slug: app
 stages: [deploy]
 ```
+
+Per-product, non-secret descriptors are committed as template inputs (auditable
+MR, not a mutable CI var): `app_service`, `app_image`, `app_host`,
+`app_release_module`, `tenant_slug`, `app_port` (default `4000`), `db_url_scheme`
+(default `ecto`).
 
 CI vars the consumer provides (Terraform-managed in `<product>-ops`):
 
@@ -426,12 +440,38 @@ CI vars the consumer provides (Terraform-managed in `<product>-ops`):
 | `PROD_SSH_PRIVATE_KEY` | File var: OpenSSH private key for the prod host |
 | `PROD_DEPLOY_READ_TOKEN` | read_api token on the product repo (latest-tag guard) |
 | `PROD_PROJECT` | product repo path (latest-tag guard) |
-| `PROD_HOST` | prod host IP/name (manifest) |
-| `APP_SERVICE` | kamal service / `bin` name (manifest + migrate hook) |
-| `APP_IMAGE` | image repo path under the registry (manifest) |
-| `APP_HOST` | public host, e.g. `app.example.com` (manifest + proxy) |
-| `APP_RELEASE_MODULE` | Elixir release module for the migrate hook |
+| `PROD_HOST` | prod host IP/name (manifest + password apply) |
 | `KAMAL_REGISTRY_USERNAME` / `KAMAL_REGISTRY_PASSWORD` | registry creds |
-| `SECRET_KEY_BASE` / `DATABASE_URL` | app secrets |
+| `SECRET_KEY_BASE` | app session secret |
+| `PROD_TENANT_PASSWORD` | managed DB role password (`random_password` + keeper); re-applied each deploy, rotated by bumping the keeper |
 
-Optional (manifest defaults): `PROXY_SSL`, `KAMAL_REGISTRY_SERVER`, `APP_PORT`, `DEPLOY_SSH_USER`.
+Optional (manifest defaults): `PROXY_SSL`, `KAMAL_REGISTRY_SERVER`, `DEPLOY_SSH_USER`.
+
+## templates/prod-tenant.yml
+
+Per-product Postgres provisioning on the shared host, run from `<product>-ops`
+once between `prod-platform` and the first deploy. Runs `eiseron prod tenant`,
+which creates the role and database (`<tenant_slug>` / `<tenant_slug>_prod`) over
+SSH (`psql` against the platform admin), seeding the role with the managed
+`PROD_TENANT_PASSWORD`. It does not clone the manifest. Web-manual only.
+
+```yaml
+# in <product>-ops
+include:
+  - project: eiseron/stack/ci
+    file: /templates/prod-tenant.yml
+    ref: vX.Y.Z
+    inputs:
+      tenant_slug: app
+stages: [tenant]
+```
+
+CI vars the consumer provides (Terraform-managed in `<product>-ops`):
+
+| var | purpose |
+| --- | --- |
+| `PROD_SSH_PRIVATE_KEY` | File var: OpenSSH private key for the prod host |
+| `PROD_HOST` | prod host IP/name |
+| `PROD_TENANT_PASSWORD` | managed DB role password the role is seeded with |
+
+Optional (`psql`-over-SSH defaults): `PG_CONTAINER` (`platform-db`), `PG_ADMIN_USER` (`eiseron`), `DEPLOY_SSH_USER` (`deploy`).

@@ -1,0 +1,40 @@
+spec:
+  inputs:
+    image_tag:
+      default: "v0.1.15"
+      description: "public-image-bases ops image tag (kamal + docker + ssh + ruby + git)."
+    automation_ref:
+      default: "v0.11.0"
+      description: "eiseron/stack/automation tag providing `eiseron prod tenant`."
+    tenant_slug:
+      description: "Per-product Postgres role/slug (PROD_TENANT_SLUG)."
+    tenant_stage:
+      default: "tenant"
+      description: "Pipeline stage for the tenant job (the consumer must declare it)."
+---
+prod-tenant:
+  stage: $[[ inputs.tenant_stage ]]
+  image:
+    name: registry.gitlab.com/eiseron/stack/public-image-bases/ops:$[[ inputs.image_tag ]]
+  tags:
+    - self-hosted
+  environment:
+    name: production
+  resource_group: production
+  variables:
+    GIT_STRATEGY: none
+    PROD_TENANT_SLUG: "$[[ inputs.tenant_slug ]]"
+  before_script:
+    - gem install specific_install --no-document
+    - gem specific_install https://gitlab.com/eiseron/stack/automation.git -b "$[[ inputs.automation_ref ]]"
+    - export PATH="$(ruby -e 'print Gem.user_dir')/bin:$PATH"
+    - eval "$(ssh-agent -s)"
+    - install -d -m 700 ~/.ssh
+    - install -m 600 "$PROD_SSH_PRIVATE_KEY" ~/.ssh/prod_deploy_key
+    - ssh-add ~/.ssh/prod_deploy_key
+    - printf 'Host *\n  StrictHostKeyChecking accept-new\n' > ~/.ssh/config
+  script:
+    - eiseron prod tenant
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "web"
+      when: manual

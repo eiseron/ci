@@ -4,11 +4,27 @@ spec:
       default: "v0.1.15"
       description: "public-image-bases ops image tag (kamal + docker + ssh + ruby + git)."
     automation_ref:
-      default: "v0.9.0"
+      default: "v0.11.0"
       description: "eiseron/stack/automation tag providing `eiseron prod deploy`."
     provisioning_ref:
       default: "v0.37.0"
       description: "eiseron/stack/provisioning tag carrying the canonical kamal/app manifest."
+    app_service:
+      description: "kamal service name, consumed by the manifest as APP_SERVICE."
+    app_image:
+      description: "Image repository path, consumed by the manifest as APP_IMAGE."
+    app_host:
+      description: "Public app host, consumed by the manifest as APP_HOST."
+    app_port:
+      default: "4000"
+      description: "Container port the app listens on (APP_PORT)."
+    app_release_module:
+      description: "Elixir release module for the post-deploy migrate hook (APP_RELEASE_MODULE)."
+    tenant_slug:
+      description: "Per-product Postgres role/slug (PROD_TENANT_SLUG); the managed PROD_TENANT_PASSWORD is re-applied idempotently each deploy."
+    db_url_scheme:
+      default: "ecto"
+      description: "Scheme for the assembled DATABASE_URL (DB_URL_SCHEME)."
     deploy_stage:
       default: "deploy"
       description: "Pipeline stage for the deploy job (the consumer must declare it)."
@@ -24,6 +40,13 @@ prod-deploy:
   resource_group: production
   variables:
     GIT_STRATEGY: none
+    APP_SERVICE: "$[[ inputs.app_service ]]"
+    APP_IMAGE: "$[[ inputs.app_image ]]"
+    APP_HOST: "$[[ inputs.app_host ]]"
+    APP_PORT: "$[[ inputs.app_port ]]"
+    APP_RELEASE_MODULE: "$[[ inputs.app_release_module ]]"
+    PROD_TENANT_SLUG: "$[[ inputs.tenant_slug ]]"
+    DB_URL_SCHEME: "$[[ inputs.db_url_scheme ]]"
   before_script:
     - gem install specific_install --no-document
     - gem specific_install https://gitlab.com/eiseron/stack/automation.git -b "$[[ inputs.automation_ref ]]"
