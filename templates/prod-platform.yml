@@ -12,6 +12,7 @@ spec:
 ---
 prod-platform:
   stage: $[[ inputs.platform_stage ]]
+  needs: []
   image:
     name: registry.gitlab.com/eiseron/stack/public-image-bases/ops:$[[ inputs.image_tag ]]
   tags:

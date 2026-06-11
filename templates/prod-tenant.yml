@@ -14,6 +14,7 @@ spec:
 ---
 prod-tenant:
   stage: $[[ inputs.tenant_stage ]]
+  needs: []
   image:
     name: registry.gitlab.com/eiseron/stack/public-image-bases/ops:$[[ inputs.image_tag ]]
   tags:
