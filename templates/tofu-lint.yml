@@ -25,4 +25,4 @@ tofu-lint:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
       changes:
         - "**/*.tf"
-    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_PIPELINE_SOURCE != "trigger" && $CI_PIPELINE_SOURCE != "schedule"
