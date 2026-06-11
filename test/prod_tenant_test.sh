@@ -19,6 +19,7 @@ want 'PROD_TENANT_SLUG: "$[[ inputs.tenant_slug ]]"' "PROD_TENANT_SLUG is not fe
 want "prod_deploy_key" "tenant job does not install the prod SSH key"
 want 'CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH' "tenant job is not gated to the default branch"
 want "when: manual" "tenant job is not manual"
+want 'if: $PREVIEW_MR_IID' "tenant job is not excluded from preview pipelines (must have no relation to prod)"
 want "needs: []" "tenant job is not DAG-independent (manual ops job must not be blocked by prior stages)"
 want "name: production" "tenant job does not run under the production environment"
 want "resource_group: production" "tenant job is not serialized via the production resource_group"

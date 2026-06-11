@@ -37,5 +37,7 @@ prod-tenant:
   script:
     - eiseron prod tenant
   rules:
+    - if: $PREVIEW_MR_IID
+      when: never
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_PIPELINE_SOURCE != "schedule"
       when: manual

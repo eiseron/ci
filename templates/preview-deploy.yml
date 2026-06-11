@@ -64,6 +64,7 @@ spec:
 preview-deploy:
   extends: .eiseron-preview-base
   stage: $[[ inputs.deploy_stage ]]
+  needs: []
   environment:
     name: production
   resource_group: preview/$PREVIEW_MR_IID
@@ -75,6 +76,7 @@ preview-deploy:
 preview-stop:
   extends: .eiseron-preview-base
   stage: $[[ inputs.stop_stage ]]
+  needs: []
   environment:
     name: production
   resource_group: preview/$PREVIEW_MR_IID
