@@ -29,6 +29,7 @@ grep -qE 'DATABASE_URL[[:space:]]*[:=]' "$template" &&
   fail "DATABASE_URL must not be set as a job variable; the gem rotates it into the kamal subprocess"
 
 want 'PROD_ACTION == "deploy"' "deploy job is not gated on PROD_ACTION deploy"
+want "needs: []" "deploy job is not DAG-independent (would block behind the manual tenant stage)"
 want "name: production" "deploy job does not run under the production environment"
 want "resource_group: production" "deploy job is not serialized via the production resource_group"
 

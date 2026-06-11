@@ -31,6 +31,7 @@ spec:
 ---
 prod-deploy:
   stage: $[[ inputs.deploy_stage ]]
+  needs: []
   image:
     name: registry.gitlab.com/eiseron/stack/public-image-bases/ops:$[[ inputs.image_tag ]]
   tags:
