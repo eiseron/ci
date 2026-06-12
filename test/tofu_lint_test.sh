@@ -12,10 +12,14 @@ want() {
   grep -qF -- "$1" "$template" || fail "$2"
 }
 
+absent() {
+  if grep -qF -- "$1" "$template"; then fail "$2"; fi
+}
+
 want 'tofu-lint:' "lint job is missing"
 want 'eiseron tofu lint' "job does not invoke the eiseron gem command"
 want '/iac:' "job does not run on the gem-bearing iac image"
-want 'CI_PIPELINE_SOURCE != "trigger"' "tofu-lint runs on trigger (deploy bridge) pipelines with no .tf"
-want 'CI_PIPELINE_SOURCE != "schedule"' "tofu-lint runs on schedule pipelines"
+want 'CI_PIPELINE_SOURCE == "merge_request_event"' "tofu-lint must run on merge request pipelines"
+absent 'CI_DEFAULT_BRANCH' "tofu-lint must not run after merge (no default-branch rule)"
 
 echo "PASS: tofu-lint wiring"
