@@ -18,6 +18,7 @@ tofu-lint:
   tags:
     - self-hosted
   cache: []
+  before_script: []
   script:
     - cd "$[[ inputs.chdir ]]"
     - eiseron tofu lint

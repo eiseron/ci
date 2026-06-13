@@ -51,6 +51,19 @@ workflow:
     - if: $CI_PIPELINE_SOURCE == "schedule"
     - if: $CI_COMMIT_BRANCH == "$[[ inputs.production_branch ]]"
 
+variables:
+  TF_PLUGIN_CACHE_DIR: "$CI_PROJECT_DIR/.terraform.d/plugin-cache"
+
+cache:
+  key:
+    prefix: tf-providers
+    files:
+      - .terraform.lock.hcl
+  paths:
+    - .terraform.d/plugin-cache
+  fallback_keys:
+    - tf-providers-default
+
 default:
   image:
     name: registry.gitlab.com/eiseron/stack/public-image-bases/iac:$[[ inputs.image_tag ]]
@@ -58,6 +71,7 @@ default:
   tags:
     - self-hosted
   before_script:
+    - mkdir -p "$TF_PLUGIN_CACHE_DIR"
     - eval "$(SOPS_AGE_KEY="$AGE_KEY" sops --output-type json -d "$[[ inputs.secrets_file ]]" | jq -r 'to_entries[] | "export \(.key)=\(.value | @sh)"')"
     - tofu -chdir=$[[ inputs.chdir ]] init -input=false
 
@@ -74,6 +88,7 @@ validate:
   stage: lint
   timeout: 2 minutes
   before_script:
+    - mkdir -p "$TF_PLUGIN_CACHE_DIR"
     - tofu -chdir=$[[ inputs.chdir ]] init -backend=false -input=false
   script:
     - tofu -chdir=$[[ inputs.chdir ]] validate
@@ -81,6 +96,7 @@ validate:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
       changes:
         - "**/*.tf"
+        - .terraform.lock.hcl
 
 plan:
   stage: plan
