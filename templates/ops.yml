@@ -1,0 +1,127 @@
+spec:
+  inputs:
+    chdir:
+      default: "."
+      description: "Directory of the Terraform root module."
+    production_branch:
+      default: "production"
+      description: "Protected branch whose push triggers apply (deploy-promotion target)."
+    trunk_branch:
+      default: "main"
+      description: "Reviewed trunk; plan runs here, production must match it."
+    secrets_file:
+      default: "secrets.enc.env"
+      description: "SOPS-encrypted env file decrypted into the job environment."
+    image_tag:
+      default: "v0.1.16"
+      description: "public-image-bases iac tag (ships tofu, sops, age, jq, the eiseron gem)."
+---
+
+include:
+  - local: /templates/tofu-lint.yml
+    inputs:
+      stage: lint
+      chdir: $[[ inputs.chdir ]]
+      image_tag: $[[ inputs.image_tag ]]
+  - local: /templates/age-key-isolation.yml
+    inputs:
+      stage: lint
+  - local: /templates/ancestry-check.yml
+    inputs:
+      stage: lint
+      production_branch: $[[ inputs.production_branch ]]
+      trunk_branch: $[[ inputs.trunk_branch ]]
+  - local: /templates/terraform-drift.yml
+    inputs:
+      stage: drift
+      chdir: $[[ inputs.chdir ]]
+      image_tag: $[[ inputs.image_tag ]]
+      secrets_file: $[[ inputs.secrets_file ]]
+
+stages:
+  - lint
+  - plan
+  - apply
+  - drift
+
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+    - if: $CI_COMMIT_BRANCH == "$[[ inputs.production_branch ]]"
+
+default:
+  image:
+    name: registry.gitlab.com/eiseron/stack/public-image-bases/iac:$[[ inputs.image_tag ]]
+    entrypoint: [""]
+  tags:
+    - self-hosted
+  before_script:
+    - eval "$(SOPS_AGE_KEY="$AGE_KEY" sops --output-type json -d "$[[ inputs.secrets_file ]]" | jq -r 'to_entries[] | "export \(.key)=\(.value | @sh)"')"
+    - tofu -chdir=$[[ inputs.chdir ]] init -input=false
+
+fmt:
+  stage: lint
+  timeout: 2 minutes
+  before_script: []
+  script:
+    - tofu -chdir=$[[ inputs.chdir ]] fmt -check -recursive
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+
+validate:
+  stage: lint
+  timeout: 2 minutes
+  before_script:
+    - tofu -chdir=$[[ inputs.chdir ]] init -backend=false -input=false
+  script:
+    - tofu -chdir=$[[ inputs.chdir ]] validate
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      changes:
+        - "**/*.tf"
+
+plan:
+  stage: plan
+  timeout: 5 minutes
+  needs: []
+  script:
+    - tofu -chdir=$[[ inputs.chdir ]] plan -no-color -input=false -refresh=false -lock=false -out=plan.tfplan
+    - tofu -chdir=$[[ inputs.chdir ]] show -no-color plan.tfplan | tee plan.txt
+  artifacts:
+    expose_as: "Terraform Plan"
+    paths:
+      - plan.txt
+    when: always
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_PIPELINE_SOURCE != "schedule"
+  environment:
+    name: production
+    action: prepare
+
+apply:
+  stage: apply
+  timeout: 15 minutes
+  needs:
+    - ancestry-check
+  script:
+    - |
+      if [ -n "${TF_REPLACE:-}" ]; then
+        REPLACE_FLAGS=""
+        OLD_IFS=$IFS
+        IFS=','
+        for t in $TF_REPLACE; do
+          t_trimmed=$(echo "$t" | xargs)
+          [ -z "$t_trimmed" ] && continue
+          REPLACE_FLAGS="$REPLACE_FLAGS -replace=$t_trimmed"
+        done
+        IFS=$OLD_IFS
+        tofu -chdir=$[[ inputs.chdir ]] apply -input=false -auto-approve $REPLACE_FLAGS
+      else
+        tofu -chdir=$[[ inputs.chdir ]] apply -input=false -auto-approve
+      fi
+  rules:
+    - if: $CI_COMMIT_BRANCH == "$[[ inputs.production_branch ]]" && $CI_PIPELINE_SOURCE != "schedule"
+  environment:
+    name: production
