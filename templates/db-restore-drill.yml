@@ -1,0 +1,45 @@
+spec:
+  inputs:
+    image_tag:
+      default: "v0.1.19"
+      description: "public-image-bases gem-runtime tag (ruby + eiseron CLI + age + pg client + aws-sdk)."
+    pg_image:
+      default: "postgres:18"
+      description: "Throwaway Postgres image the drill restores into (match the production server major)."
+    app_name:
+      default: "app"
+      description: "Product slug; selects the backup object prefix (PROD_BACKUP_NAME)."
+    drill_stage:
+      default: "drill"
+      description: "Pipeline stage for the drill job (the consumer must declare it)."
+---
+db-restore-drill:
+  stage: $[[ inputs.drill_stage ]]
+  timeout: 15 minutes
+  image:
+    name: registry.gitlab.com/eiseron/stack/public-image-bases/gem-runtime:$[[ inputs.image_tag ]]
+  tags:
+    - self-hosted
+  environment:
+    name: production
+  cache: []
+  services:
+    - name: $[[ inputs.pg_image ]]
+      alias: postgres
+  variables:
+    GIT_STRATEGY: none
+    POSTGRES_USER: postgres
+    POSTGRES_PASSWORD: postgres
+    POSTGRES_DB: drill
+    PGHOST: postgres
+    PGUSER: postgres
+    PGPASSWORD: postgres
+    PROD_DRILL_DATABASE: drill
+    PROD_BACKUP_NAME: "$[[ inputs.app_name ]]"
+  before_script:
+    - n=0; until pg_isready -h postgres -U postgres -t 1; do n=$((n+1)); [ "$n" -ge 30 ] && { echo "postgres service did not become ready after 30 attempts"; exit 1; }; sleep 1; done
+  script:
+    - eiseron db restore-drill
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
+    - if: '$CI_PIPELINE_SOURCE == "web"'

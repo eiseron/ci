@@ -475,3 +475,40 @@ CI vars the consumer provides (Terraform-managed in `<product>-ops`):
 | `PROD_TENANT_PASSWORD` | managed DB role password the role is seeded with |
 
 Optional (`psql`-over-SSH defaults): `PG_CONTAINER` (`platform-db`), `PG_ADMIN_USER` (`eiseron`), `DEPLOY_SSH_USER` (`deploy`).
+
+## templates/db-restore-drill.yml
+
+Scheduled `db-restore-drill` job — the mandatory gate that proves the latest
+encrypted backup is restorable. On the `gem-runtime` image it runs `eiseron
+db restore-drill`, which pulls the newest `*.sql.age` object from the backups
+bucket, decrypts it with the low-privilege **drill** key (never the cold DR
+key), restores it into a throwaway Postgres service, and verifies the result.
+A failure fails the scheduled pipeline (the alert); the cold DR key stays
+offline. Runs in the product's ops repo on a schedule (production scope, so
+the drill key and R2 read creds are available).
+
+```yaml
+# in the product's OPS repo, on a schedule
+include:
+  - project: eiseron/stack/ci
+    file: /templates/db-restore-drill.yml
+    ref: v0.1.42
+    inputs:
+      app_name: example
+
+stages:
+  - drill
+```
+
+Inputs:
+
+| input | default | purpose |
+|-------|---------|---------|
+| `app_name` | `app` | product slug; selects the backup object prefix (`PROD_BACKUP_NAME`) |
+| `image_tag` | `v0.1.19` | `public-image-bases/gem-runtime` tag (eiseron CLI + age + pg client + aws-sdk) |
+| `pg_image` | `postgres:18` | throwaway Postgres the drill restores into (match the prod server major) |
+| `drill_stage` | `drill` | pipeline stage (the consumer must declare it) |
+
+The ops repo supplies (production scope): `PROD_BACKUP_BUCKET`,
+`CLOUDFLARE_ACCOUNT_ID`, `PROD_BACKUP_DRILL_KEY`, `AWS_ACCESS_KEY_ID`,
+`AWS_SECRET_ACCESS_KEY` (R2 read).
