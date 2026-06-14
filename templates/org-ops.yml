@@ -278,14 +278,14 @@ runner-provision:
   before_script: []
   parallel:
     matrix:
-      - RUNNER_HOST: $[[ inputs.runner_hosts ]]
+      - RUNNER_HOSTNAME: $[[ inputs.runner_hosts ]]
   needs:
     - job: runner-apply
       artifacts: false
       optional: true
   script:
     - |
-      if [ -z "$RUNNER_HOST" ]; then
+      if [ -z "$RUNNER_HOSTNAME" ]; then
         echo "runner-provision: empty host sentinel; skipping"
         exit 0
       fi
@@ -295,7 +295,7 @@ runner-provision:
       ANSIBLE_INVENTORY="$CI_PROJECT_DIR/runner/ansible/inventory/production.yml"
       ANSIBLE_HOST_KEY_CHECKING=False
       ansible-playbook "$CI_PROJECT_DIR/runner/ansible/playbooks/provision-runner.yml"
-      --limit "$RUNNER_HOST"
+      --limit "$RUNNER_HOSTNAME"
       --private-key "$ANSIBLE_SSH_PRIVATE_KEY"
       -e "gitlab_runner_token=$GITLAB_RUNNER_TOKEN"
       -e "eiseron_runner_ip=$EISERON_RUNNER_IP"
@@ -321,14 +321,14 @@ preview-provision:
   before_script: []
   parallel:
     matrix:
-      - PREVIEW_HOST: $[[ inputs.preview_hosts ]]
+      - PREVIEW_HOSTNAME: $[[ inputs.preview_hosts ]]
   needs:
     - job: apply
       artifacts: false
       optional: true
   script:
     - |
-      if [ -z "$PREVIEW_HOST" ]; then
+      if [ -z "$PREVIEW_HOSTNAME" ]; then
         echo "preview-provision: empty host sentinel; skipping"
         exit 0
       fi
@@ -338,7 +338,7 @@ preview-provision:
       ANSIBLE_INVENTORY="$CI_PROJECT_DIR/preview/ansible/inventory/production.yml"
       ANSIBLE_HOST_KEY_CHECKING=False
       ansible-playbook "$CI_PROJECT_DIR/preview/ansible/playbooks/provision-preview.yml"
-      --limit "$PREVIEW_HOST"
+      --limit "$PREVIEW_HOSTNAME"
       --private-key "$PREVIEW_ANSIBLE_SSH_PRIVATE_KEY"
   rules:
     - if: $CI_COMMIT_BRANCH == "production" && $CI_PIPELINE_SOURCE != "schedule"
@@ -359,14 +359,14 @@ keyserver-provision:
   before_script: []
   parallel:
     matrix:
-      - KEYSERVER_HOST: $[[ inputs.keyserver_hosts ]]
+      - KEYSERVER_HOSTNAME: $[[ inputs.keyserver_hosts ]]
   needs:
     - job: apply
       artifacts: false
       optional: true
   script:
     - |
-      if [ -z "$KEYSERVER_HOST" ]; then
+      if [ -z "$KEYSERVER_HOSTNAME" ]; then
         echo "keyserver-provision: empty host sentinel; skipping"
         exit 0
       fi
@@ -383,7 +383,7 @@ keyserver-provision:
       TANG_ALLOWED_IPS="${PROD_HOST_IP:-}"
       CI_RUNNER_IP="${EISERON_RUNNER_IP}"
       ansible-playbook "$CI_PROJECT_DIR/keyserver/ansible/playbooks/provision-keyserver.yml"
-      --limit "$KEYSERVER_HOST"
+      --limit "$KEYSERVER_HOSTNAME"
       --private-key "$TANG_ANSIBLE_SSH_PRIVATE_KEY"
   rules:
     - if: $CI_COMMIT_BRANCH == "production" && $CI_PIPELINE_SOURCE != "schedule"
@@ -404,7 +404,7 @@ prod-provision:
   before_script: []
   parallel:
     matrix:
-      - PROD_HOST: $[[ inputs.prod_hosts ]]
+      - PROD_HOSTNAME: $[[ inputs.prod_hosts ]]
   needs:
     - job: apply
       artifacts: false
@@ -414,7 +414,7 @@ prod-provision:
       optional: true
   script:
     - |
-      if [ -z "$PROD_HOST" ]; then
+      if [ -z "$PROD_HOSTNAME" ]; then
         echo "prod-provision: empty host sentinel; skipping"
         exit 0
       fi
@@ -437,7 +437,7 @@ prod-provision:
       ANSIBLE_HOST_KEY_CHECKING=False
       CI_RUNNER_IP="${EISERON_RUNNER_IP}"
       ansible-playbook "$CI_PROJECT_DIR/prod/ansible/playbooks/provision-prod.yml"
-      --limit "$PROD_HOST"
+      --limit "$PROD_HOSTNAME"
       --private-key "$PROD_ANSIBLE_SSH_PRIVATE_KEY"
   rules:
     - if: $CI_COMMIT_BRANCH == "production" && $CI_PIPELINE_SOURCE != "schedule"
