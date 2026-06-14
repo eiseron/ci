@@ -95,7 +95,6 @@ variables:
 apply:
   rules:
     - if: $CI_COMMIT_BRANCH == "$[[ inputs.production_branch ]]" && $CI_PIPELINE_SOURCE != "schedule" && $TF_STATE_RM == null
-  needs: []
 
 rotate-tokens:
   stage: rotate
