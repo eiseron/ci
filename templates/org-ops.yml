@@ -1,0 +1,459 @@
+spec:
+  inputs:
+    chdir:
+      default: "."
+      description: "Directory of the root Terraform state."
+    secrets_file:
+      default: "secrets.enc.env"
+      description: "SOPS-encrypted env file decrypted into the job environment."
+    production_branch:
+      default: "production"
+      description: "Protected branch whose push triggers apply (deploy-promotion target)."
+    trunk_branch:
+      default: "main"
+      description: "Reviewed trunk; plan runs here, production must match it."
+    image_tag:
+      default: "v0.1.16"
+      description: "public-image-bases iac tag (tofu, sops, age, jq, the eiseron gem)."
+    runner_state:
+      type: boolean
+      default: false
+      description: "Enables a second tofu state under runner/terraform (fmt/validate/plan/apply jobs scoped to that state, runner-apply on saas runners)."
+    runner_hosts:
+      type: array
+      default: [""]
+      description: "Ansible target hosts (one per matrix instance) for the GitLab runner provisioner. Empty string = job skipped."
+    preview_hosts:
+      type: array
+      default: [""]
+      description: "Ansible target hosts for the shared preview host provisioner. Empty string = job skipped."
+    prod_hosts:
+      type: array
+      default: [""]
+      description: "Ansible target hosts for the production host provisioner. Empty string = job skipped."
+    keyserver_hosts:
+      type: array
+      default: [""]
+      description: "Ansible target hosts for the Tang key server provisioner. Empty string = job skipped."
+    prod_platform:
+      type: boolean
+      default: false
+      description: "Pulls in the stack/ci prod-platform template (manual platform-management jobs)."
+    prod_platform_stage:
+      default: "platform"
+      description: "Stage declared for the prod-platform template (must be in stages)."
+    rotate_token_targets:
+      type: string
+      default: ""
+      description: "Comma-separated TF addresses replaced by rotate-tokens (manual, web pipeline on production). Empty disables the job."
+    rotate_sa_token_targets:
+      type: string
+      default: ""
+      description: "Comma-separated TF addresses refreshed by rotate-sa-tokens on ROTATE_SA=1 schedules. Empty disables the job."
+---
+
+include:
+  - local: /templates/ops.yml
+    inputs:
+      chdir: $[[ inputs.chdir ]]
+      secrets_file: $[[ inputs.secrets_file ]]
+      production_branch: $[[ inputs.production_branch ]]
+      trunk_branch: $[[ inputs.trunk_branch ]]
+      image_tag: $[[ inputs.image_tag ]]
+  - local: /templates/prod-platform.yml
+    rules:
+      - if: '"$[[ inputs.prod_platform ]]" == "true"'
+    inputs:
+      platform_stage: $[[ inputs.prod_platform_stage ]]
+
+stages:
+  - lint
+  - plan
+  - apply
+  - rotate
+  - runner-apply
+  - runner-provision
+  - preview-provision
+  - keyserver-provision
+  - prod-provision
+  - platform
+  - drift
+
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - if: $CI_COMMIT_BRANCH == "$[[ inputs.production_branch ]]"
+    - if: $CI_PIPELINE_SOURCE == "web"
+
+variables:
+  ORG_RUNNER_STATE: "$[[ inputs.runner_state ]]"
+  ORG_ROTATE_TOKEN_TARGETS: "$[[ inputs.rotate_token_targets ]]"
+  ORG_ROTATE_SA_TOKEN_TARGETS: "$[[ inputs.rotate_sa_token_targets ]]"
+
+apply:
+  rules:
+    - if: $CI_COMMIT_BRANCH == "$[[ inputs.production_branch ]]" && $CI_PIPELINE_SOURCE != "schedule" && $TF_STATE_RM == null
+  needs: []
+
+rotate-tokens:
+  stage: rotate
+  timeout: 5 minutes
+  script:
+    - |
+      set -euo pipefail
+      OLD_IFS=$IFS
+      IFS=','
+      REPLACE_FLAGS=""
+      for t in $ORG_ROTATE_TOKEN_TARGETS; do
+        t_trimmed=$(echo "$t" | xargs)
+        [ -z "$t_trimmed" ] && continue
+        REPLACE_FLAGS="$REPLACE_FLAGS -replace=$t_trimmed"
+      done
+      IFS=$OLD_IFS
+      tofu -chdir=$[[ inputs.chdir ]] apply -input=false -auto-approve $REPLACE_FLAGS
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "web" && $CI_COMMIT_BRANCH == "$[[ inputs.production_branch ]]" && $ORG_ROTATE_TOKEN_TARGETS != ""
+      when: manual
+  environment:
+    name: production
+
+rotate-sa-tokens:
+  stage: rotate
+  timeout: 5 minutes
+  needs: []
+  script:
+    - |
+      set -euo pipefail
+      OLD_IFS=$IFS
+      IFS=','
+      TARGET_FLAGS=""
+      for t in $ORG_ROTATE_SA_TOKEN_TARGETS; do
+        t_trimmed=$(echo "$t" | xargs)
+        [ -z "$t_trimmed" ] && continue
+        TARGET_FLAGS="$TARGET_FLAGS -target=$t_trimmed"
+      done
+      IFS=$OLD_IFS
+      tofu -chdir=$[[ inputs.chdir ]] apply -input=false -auto-approve $TARGET_FLAGS
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule" && $ROTATE_SA == "1" && $ORG_ROTATE_SA_TOKEN_TARGETS != ""
+  environment:
+    name: production
+
+state-rm:
+  stage: rotate
+  timeout: 5 minutes
+  needs: []
+  script:
+    - |
+      set -euo pipefail
+      if [ -n "${TF_FORCE_UNLOCK:-}" ]; then
+        tofu -chdir=$[[ inputs.chdir ]] force-unlock -force "$TF_FORCE_UNLOCK" || echo "force-unlock skipped: no matching lock"
+      fi
+      OLD_IFS=$IFS
+      IFS=','
+      for addr in $TF_STATE_RM; do
+        addr_trimmed=$(printf '%s' "$addr" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+        [ -z "$addr_trimmed" ] && continue
+        tofu -chdir=$[[ inputs.chdir ]] state rm "$addr_trimmed"
+      done
+      IFS=$OLD_IFS
+      tofu -chdir=$[[ inputs.chdir ]] apply -input=false -auto-approve
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "web" && $CI_COMMIT_BRANCH == "$[[ inputs.production_branch ]]" && $TF_STATE_RM
+      when: manual
+  environment:
+    name: production
+
+runner-fmt:
+  stage: lint
+  timeout: 2 minutes
+  before_script: []
+  script:
+    - tofu -chdir=$CI_PROJECT_DIR/runner/terraform fmt -check -recursive
+  rules:
+    - if: $ORG_RUNNER_STATE == "true" && $CI_PIPELINE_SOURCE == "merge_request_event"
+      changes:
+        - runner/terraform/**/*
+
+runner-validate:
+  stage: lint
+  timeout: 2 minutes
+  cache:
+    key:
+      prefix: tf-runner
+      files:
+        - runner/terraform/.terraform.lock.hcl
+    paths:
+      - .terraform.d/plugin-cache
+    fallback_keys:
+      - tf-runner-default
+  before_script:
+    - mkdir -p "$CI_PROJECT_DIR/.terraform.d/plugin-cache"
+    - tofu -chdir=$CI_PROJECT_DIR/runner/terraform init -backend=false -input=false
+  script:
+    - tofu -chdir=$CI_PROJECT_DIR/runner/terraform validate
+  rules:
+    - if: $ORG_RUNNER_STATE == "true" && $CI_PIPELINE_SOURCE == "merge_request_event"
+      changes:
+        - runner/terraform/**/*
+
+runner-plan:
+  stage: plan
+  timeout: 5 minutes
+  cache:
+    key:
+      prefix: tf-runner
+      files:
+        - runner/terraform/.terraform.lock.hcl
+    paths:
+      - .terraform.d/plugin-cache
+    fallback_keys:
+      - tf-runner-default
+  needs: []
+  before_script:
+    - mkdir -p "$CI_PROJECT_DIR/.terraform.d/plugin-cache"
+    - eval "$(SOPS_AGE_KEY="$AGE_KEY" sops --output-type json -d "$[[ inputs.secrets_file ]]" | jq -r 'to_entries[] | "export \(.key)=\(.value | @sh)"')"
+    - tofu -chdir=$CI_PROJECT_DIR/runner/terraform init -input=false
+  script:
+    - tofu -chdir=$CI_PROJECT_DIR/runner/terraform plan -no-color -input=false -refresh=false -lock=false -out=runner-plan.tfplan
+    - tofu -chdir=$CI_PROJECT_DIR/runner/terraform show -no-color runner-plan.tfplan | tee runner-plan.txt
+  artifacts:
+    expose_as: "Runner Terraform Plan"
+    paths:
+      - runner-plan.txt
+    when: always
+  rules:
+    - if: $ORG_RUNNER_STATE == "true" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_PIPELINE_SOURCE != "schedule"
+      when: manual
+  environment:
+    name: production
+    action: prepare
+
+runner-apply:
+  stage: runner-apply
+  timeout: 5 minutes
+  cache:
+    key:
+      prefix: tf-runner
+      files:
+        - runner/terraform/.terraform.lock.hcl
+    paths:
+      - .terraform.d/plugin-cache
+    fallback_keys:
+      - tf-runner-default
+  needs: []
+  tags:
+    - saas-linux-small-amd64
+  before_script:
+    - mkdir -p "$CI_PROJECT_DIR/.terraform.d/plugin-cache"
+    - eval "$(SOPS_AGE_KEY="$AGE_KEY" sops --output-type json -d "$[[ inputs.secrets_file ]]" | jq -r 'to_entries[] | "export \(.key)=\(.value | @sh)"')"
+    - tofu -chdir=$CI_PROJECT_DIR/runner/terraform init -input=false
+  script:
+    - |
+      if [ -n "${TF_REPLACE_RUNNER:-}" ]; then
+        REPLACE_FLAGS=""
+        OLD_IFS=$IFS
+        IFS=','
+        for t in $TF_REPLACE_RUNNER; do
+          t_trimmed=$(echo "$t" | xargs)
+          [ -z "$t_trimmed" ] && continue
+          REPLACE_FLAGS="$REPLACE_FLAGS -replace=$t_trimmed"
+        done
+        IFS=$OLD_IFS
+        tofu -chdir=$CI_PROJECT_DIR/runner/terraform apply -input=false -auto-approve $REPLACE_FLAGS
+      else
+        tofu -chdir=$CI_PROJECT_DIR/runner/terraform apply -input=false -auto-approve
+      fi
+  rules:
+    - if: $ORG_RUNNER_STATE == "true" && $CI_COMMIT_BRANCH == "$[[ inputs.production_branch ]]" && $CI_PIPELINE_SOURCE != "schedule"
+      changes:
+        - runner/**/*
+    - if: $ORG_RUNNER_STATE == "true" && $CI_COMMIT_BRANCH == "$[[ inputs.production_branch ]]" && $CI_PIPELINE_SOURCE != "schedule"
+      when: manual
+      allow_failure: false
+  environment:
+    name: production
+
+runner-provision:
+  stage: runner-provision
+  timeout: 10 minutes
+  tags:
+    - saas-linux-small-amd64
+  image:
+    name: registry.gitlab.com/eiseron/stack/public-image-bases/python-ansible:latest
+    entrypoint: [""]
+  before_script: []
+  parallel:
+    matrix:
+      - RUNNER_HOST: $[[ inputs.runner_hosts ]]
+  needs:
+    - job: runner-apply
+      artifacts: false
+      optional: true
+  script:
+    - |
+      if [ -z "$RUNNER_HOST" ]; then
+        echo "runner-provision: empty host sentinel; skipping"
+        exit 0
+      fi
+    - chmod 600 "$ANSIBLE_SSH_PRIVATE_KEY"
+    - >
+      ANSIBLE_ROLES_PATH="$CI_PROJECT_DIR/runner/ansible/roles"
+      ANSIBLE_INVENTORY="$CI_PROJECT_DIR/runner/ansible/inventory/production.yml"
+      ANSIBLE_HOST_KEY_CHECKING=False
+      ansible-playbook "$CI_PROJECT_DIR/runner/ansible/playbooks/provision-runner.yml"
+      --limit "$RUNNER_HOST"
+      --private-key "$ANSIBLE_SSH_PRIVATE_KEY"
+      -e "gitlab_runner_token=$GITLAB_RUNNER_TOKEN"
+      -e "eiseron_runner_ip=$EISERON_RUNNER_IP"
+      -e "gitlab_runner_cache_s3_endpoint=$EISERON_RUNNER_CACHE_S3_ENDPOINT"
+      -e "gitlab_runner_cache_s3_bucket=$EISERON_RUNNER_CACHE_BUCKET"
+      -e "gitlab_runner_cache_s3_access_key=$EISERON_RUNNER_CACHE_ACCESS_KEY"
+      -e "gitlab_runner_cache_s3_secret_key=$EISERON_RUNNER_CACHE_SECRET_KEY"
+  rules:
+    - if: $CI_COMMIT_BRANCH == "$[[ inputs.production_branch ]]" && $CI_PIPELINE_SOURCE != "schedule"
+      changes:
+        - runner/**/*
+    - if: $CI_COMMIT_BRANCH == "$[[ inputs.production_branch ]]" && $CI_PIPELINE_SOURCE != "schedule"
+      when: on_success
+  environment:
+    name: production
+
+preview-provision:
+  stage: preview-provision
+  timeout: 10 minutes
+  image:
+    name: registry.gitlab.com/eiseron/stack/public-image-bases/python-ansible:v0.1.5
+    entrypoint: [""]
+  before_script: []
+  parallel:
+    matrix:
+      - PREVIEW_HOST: $[[ inputs.preview_hosts ]]
+  needs:
+    - job: apply
+      artifacts: false
+      optional: true
+  script:
+    - |
+      if [ -z "$PREVIEW_HOST" ]; then
+        echo "preview-provision: empty host sentinel; skipping"
+        exit 0
+      fi
+    - chmod 600 "$PREVIEW_ANSIBLE_SSH_PRIVATE_KEY"
+    - ansible-galaxy collection install -r "$CI_PROJECT_DIR/preview/ansible/requirements.yml"
+    - >
+      ANSIBLE_INVENTORY="$CI_PROJECT_DIR/preview/ansible/inventory/production.yml"
+      ANSIBLE_HOST_KEY_CHECKING=False
+      ansible-playbook "$CI_PROJECT_DIR/preview/ansible/playbooks/provision-preview.yml"
+      --limit "$PREVIEW_HOST"
+      --private-key "$PREVIEW_ANSIBLE_SSH_PRIVATE_KEY"
+  rules:
+    - if: $CI_COMMIT_BRANCH == "$[[ inputs.production_branch ]]" && $CI_PIPELINE_SOURCE != "schedule"
+      changes:
+        - preview/**/*
+        - preview-server.tf
+    - if: $CI_COMMIT_BRANCH == "$[[ inputs.production_branch ]]" && $CI_PIPELINE_SOURCE != "schedule"
+      when: manual
+  environment:
+    name: production
+
+keyserver-provision:
+  stage: keyserver-provision
+  timeout: 10 minutes
+  image:
+    name: registry.gitlab.com/eiseron/stack/public-image-bases/python-ansible:v0.1.5
+    entrypoint: [""]
+  before_script: []
+  parallel:
+    matrix:
+      - KEYSERVER_HOST: $[[ inputs.keyserver_hosts ]]
+  needs:
+    - job: apply
+      artifacts: false
+      optional: true
+  script:
+    - |
+      if [ -z "$KEYSERVER_HOST" ]; then
+        echo "keyserver-provision: empty host sentinel; skipping"
+        exit 0
+      fi
+    - |
+      if [ -z "${TANG_HOST_IP:-}" ]; then
+        echo "key server dormant: TANG_HOST_IP unset (no seat encrypts); skipping"
+        exit 0
+      fi
+    - chmod 600 "$TANG_ANSIBLE_SSH_PRIVATE_KEY"
+    - ansible-galaxy collection install -r "$CI_PROJECT_DIR/keyserver/ansible/requirements.yml"
+    - >
+      ANSIBLE_INVENTORY="$CI_PROJECT_DIR/keyserver/ansible/inventory/production.yml"
+      ANSIBLE_HOST_KEY_CHECKING=False
+      TANG_ALLOWED_IPS="${PROD_HOST_IP:-}"
+      CI_RUNNER_IP="${EISERON_RUNNER_IP}"
+      ansible-playbook "$CI_PROJECT_DIR/keyserver/ansible/playbooks/provision-keyserver.yml"
+      --limit "$KEYSERVER_HOST"
+      --private-key "$TANG_ANSIBLE_SSH_PRIVATE_KEY"
+  rules:
+    - if: $CI_COMMIT_BRANCH == "$[[ inputs.production_branch ]]" && $CI_PIPELINE_SOURCE != "schedule"
+      changes:
+        - keyserver/**/*
+        - prod-server.tf
+    - if: $CI_COMMIT_BRANCH == "$[[ inputs.production_branch ]]" && $CI_PIPELINE_SOURCE != "schedule"
+      when: on_success
+  environment:
+    name: production
+
+prod-provision:
+  stage: prod-provision
+  timeout: 15 minutes
+  image:
+    name: registry.gitlab.com/eiseron/stack/public-image-bases/python-ansible:v0.1.5
+    entrypoint: [""]
+  before_script: []
+  parallel:
+    matrix:
+      - PROD_HOST: $[[ inputs.prod_hosts ]]
+  needs:
+    - job: apply
+      artifacts: false
+      optional: true
+    - job: keyserver-provision
+      artifacts: false
+      optional: true
+  script:
+    - |
+      if [ -z "$PROD_HOST" ]; then
+        echo "prod-provision: empty host sentinel; skipping"
+        exit 0
+      fi
+    - |
+      if [ -z "${PROD_HOST_IP:-}" ]; then
+        echo "prod dormant: PROD_HOST_IP unset; skipping provision"
+        exit 0
+      fi
+    - chmod 600 "$PROD_ANSIBLE_SSH_PRIVATE_KEY"
+    - ansible-galaxy collection install -r "$CI_PROJECT_DIR/prod/ansible/requirements.yml"
+    - |
+      if [ -n "${TANG_HOST_IP:-}" ]; then
+        export ENCRYPT_AT_REST=true
+        export PROD_LUKS_TANG_URL="http://${TANG_HOST_IP}:7500"
+      else
+        export ENCRYPT_AT_REST=false
+      fi
+    - >
+      ANSIBLE_INVENTORY="$CI_PROJECT_DIR/prod/ansible/inventory/production.yml"
+      ANSIBLE_HOST_KEY_CHECKING=False
+      CI_RUNNER_IP="${EISERON_RUNNER_IP}"
+      ansible-playbook "$CI_PROJECT_DIR/prod/ansible/playbooks/provision-prod.yml"
+      --limit "$PROD_HOST"
+      --private-key "$PROD_ANSIBLE_SSH_PRIVATE_KEY"
+  rules:
+    - if: $CI_COMMIT_BRANCH == "$[[ inputs.production_branch ]]" && $CI_PIPELINE_SOURCE != "schedule"
+      changes:
+        - prod/**/*
+        - prod-server.tf
+    - if: $CI_COMMIT_BRANCH == "$[[ inputs.production_branch ]]" && $CI_PIPELINE_SOURCE != "schedule"
+      when: on_success
+  environment:
+    name: production
