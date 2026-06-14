@@ -3,12 +3,6 @@ spec:
     stage:
       default: "lint"
       description: "Pipeline stage for the job (consumer must declare it)."
-    production_branch:
-      default: "production"
-      description: "Protected branch whose push triggers apply (deploy-promotion target)."
-    trunk_branch:
-      default: "main"
-      description: "Reviewed trunk that the production branch must match in content."
 ---
 
 ancestry-check:
@@ -18,8 +12,8 @@ ancestry-check:
   variables:
     GIT_DEPTH: "0"
   script:
-    - git fetch origin $[[ inputs.trunk_branch ]]
-    - 'git diff --quiet HEAD origin/$[[ inputs.trunk_branch ]] || { echo "branch content differs from the reviewed trunk; promote only via a $[[ inputs.trunk_branch ]] to $[[ inputs.production_branch ]] MR"; exit 1; }'
+    - git fetch origin main
+    - 'git diff --quiet HEAD origin/main || { echo "branch content differs from the reviewed trunk; promote only via a main to production MR"; exit 1; }'
   rules:
-    - if: $CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "$[[ inputs.production_branch ]]"
-    - if: $CI_COMMIT_BRANCH == "$[[ inputs.production_branch ]]" && $CI_PIPELINE_SOURCE != "schedule"
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "production"
+    - if: $CI_COMMIT_BRANCH == "production" && $CI_PIPELINE_SOURCE != "schedule"

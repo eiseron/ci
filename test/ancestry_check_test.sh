@@ -19,7 +19,8 @@ absent() {
 want 'ancestry-check:' "guard job is missing"
 want 'git diff --quiet HEAD origin/' "guard is not content-based (must diff the trunk tree)"
 want 'CI_MERGE_REQUEST_TARGET_BRANCH_NAME' "guard does not run pre-merge on MRs targeting the production branch"
-want 'inputs.production_branch' "production branch must be parameterized"
+want '"production"' "production branch must be hardcoded"
+want 'origin main' "trunk branch must be hardcoded as 'main' in the git fetch / diff"
 want 'GIT_DEPTH' "guard needs full history for the content diff"
 absent 'merge-base' "guard must be content-based, not SHA ancestry (breaks under squash)"
 

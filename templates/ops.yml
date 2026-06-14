@@ -3,12 +3,6 @@ spec:
     chdir:
       default: "."
       description: "Directory of the Terraform root module."
-    production_branch:
-      default: "production"
-      description: "Protected branch whose push triggers apply (deploy-promotion target)."
-    trunk_branch:
-      default: "main"
-      description: "Reviewed trunk; plan runs here, production must match it."
     secrets_file:
       default: "secrets.enc.env"
       description: "SOPS-encrypted env file decrypted into the job environment."
@@ -29,8 +23,6 @@ include:
   - local: /templates/ancestry-check.yml
     inputs:
       stage: lint
-      production_branch: $[[ inputs.production_branch ]]
-      trunk_branch: $[[ inputs.trunk_branch ]]
   - local: /templates/terraform-drift.yml
     inputs:
       stage: drift
@@ -49,7 +41,7 @@ workflow:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
     - if: $CI_PIPELINE_SOURCE == "schedule"
-    - if: $CI_COMMIT_BRANCH == "$[[ inputs.production_branch ]]"
+    - if: $CI_COMMIT_BRANCH == "production"
 
 variables:
   TF_PLUGIN_CACHE_DIR: "$CI_PROJECT_DIR/.terraform.d/plugin-cache"
@@ -138,6 +130,6 @@ apply:
         tofu -chdir=$[[ inputs.chdir ]] apply -input=false -auto-approve
       fi
   rules:
-    - if: $CI_COMMIT_BRANCH == "$[[ inputs.production_branch ]]" && $CI_PIPELINE_SOURCE != "schedule"
+    - if: $CI_COMMIT_BRANCH == "production" && $CI_PIPELINE_SOURCE != "schedule"
   environment:
     name: production

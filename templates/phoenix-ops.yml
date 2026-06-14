@@ -6,12 +6,6 @@ spec:
     secrets_file:
       default: "secrets.enc.env"
       description: "SOPS-encrypted env file decrypted into the job environment."
-    production_branch:
-      default: "production"
-      description: "Protected branch whose push triggers apply (deploy-promotion target)."
-    trunk_branch:
-      default: "main"
-      description: "Reviewed trunk; plan runs here, production must match it."
     image_tag:
       default: "v0.1.16"
       description: "public-image-bases iac tag (tofu, sops, age, jq, the eiseron gem)."
@@ -50,8 +44,6 @@ include:
     inputs:
       chdir: $[[ inputs.chdir ]]
       secrets_file: $[[ inputs.secrets_file ]]
-      production_branch: $[[ inputs.production_branch ]]
-      trunk_branch: $[[ inputs.trunk_branch ]]
       image_tag: $[[ inputs.image_tag ]]
   - local: /templates/preview-deploy.yml
     inputs:
@@ -104,7 +96,7 @@ workflow:
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
-    - if: $CI_COMMIT_BRANCH == "$[[ inputs.production_branch ]]"
+    - if: $CI_COMMIT_BRANCH == "production"
     - if: $CI_PIPELINE_SOURCE == "schedule"
     - if: $PREVIEW_MR_IID
     - if: $PROD_ACTION == "deploy"

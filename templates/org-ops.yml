@@ -6,12 +6,6 @@ spec:
     secrets_file:
       default: "secrets.enc.env"
       description: "SOPS-encrypted env file decrypted into the job environment."
-    production_branch:
-      default: "production"
-      description: "Protected branch whose push triggers apply (deploy-promotion target)."
-    trunk_branch:
-      default: "main"
-      description: "Reviewed trunk; plan runs here, production must match it."
     image_tag:
       default: "v0.1.16"
       description: "public-image-bases iac tag (tofu, sops, age, jq, the eiseron gem)."
@@ -57,8 +51,6 @@ include:
     inputs:
       chdir: $[[ inputs.chdir ]]
       secrets_file: $[[ inputs.secrets_file ]]
-      production_branch: $[[ inputs.production_branch ]]
-      trunk_branch: $[[ inputs.trunk_branch ]]
       image_tag: $[[ inputs.image_tag ]]
   - local: /templates/prod-platform.yml
     rules:
@@ -84,7 +76,7 @@ workflow:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
     - if: $CI_PIPELINE_SOURCE == "schedule"
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
-    - if: $CI_COMMIT_BRANCH == "$[[ inputs.production_branch ]]"
+    - if: $CI_COMMIT_BRANCH == "production"
     - if: $CI_PIPELINE_SOURCE == "web"
 
 variables:
@@ -94,7 +86,7 @@ variables:
 
 apply:
   rules:
-    - if: $CI_COMMIT_BRANCH == "$[[ inputs.production_branch ]]" && $CI_PIPELINE_SOURCE != "schedule" && $TF_STATE_RM == null
+    - if: $CI_COMMIT_BRANCH == "production" && $CI_PIPELINE_SOURCE != "schedule" && $TF_STATE_RM == null
 
 rotate-tokens:
   stage: rotate
@@ -113,7 +105,7 @@ rotate-tokens:
       IFS=$OLD_IFS
       tofu -chdir=$[[ inputs.chdir ]] apply -input=false -auto-approve $REPLACE_FLAGS
   rules:
-    - if: $CI_PIPELINE_SOURCE == "web" && $CI_COMMIT_BRANCH == "$[[ inputs.production_branch ]]" && $ORG_ROTATE_TOKEN_TARGETS != ""
+    - if: $CI_PIPELINE_SOURCE == "web" && $CI_COMMIT_BRANCH == "production" && $ORG_ROTATE_TOKEN_TARGETS != ""
       when: manual
   environment:
     name: production
@@ -160,7 +152,7 @@ state-rm:
       IFS=$OLD_IFS
       tofu -chdir=$[[ inputs.chdir ]] apply -input=false -auto-approve
   rules:
-    - if: $CI_PIPELINE_SOURCE == "web" && $CI_COMMIT_BRANCH == "$[[ inputs.production_branch ]]" && $TF_STATE_RM
+    - if: $CI_PIPELINE_SOURCE == "web" && $CI_COMMIT_BRANCH == "production" && $TF_STATE_RM
       when: manual
   environment:
     name: production
@@ -266,10 +258,10 @@ runner-apply:
         tofu -chdir=$CI_PROJECT_DIR/runner/terraform apply -input=false -auto-approve
       fi
   rules:
-    - if: $ORG_RUNNER_STATE == "true" && $CI_COMMIT_BRANCH == "$[[ inputs.production_branch ]]" && $CI_PIPELINE_SOURCE != "schedule"
+    - if: $ORG_RUNNER_STATE == "true" && $CI_COMMIT_BRANCH == "production" && $CI_PIPELINE_SOURCE != "schedule"
       changes:
         - runner/**/*
-    - if: $ORG_RUNNER_STATE == "true" && $CI_COMMIT_BRANCH == "$[[ inputs.production_branch ]]" && $CI_PIPELINE_SOURCE != "schedule"
+    - if: $ORG_RUNNER_STATE == "true" && $CI_COMMIT_BRANCH == "production" && $CI_PIPELINE_SOURCE != "schedule"
       when: manual
       allow_failure: false
   environment:
@@ -312,10 +304,10 @@ runner-provision:
       -e "gitlab_runner_cache_s3_access_key=$EISERON_RUNNER_CACHE_ACCESS_KEY"
       -e "gitlab_runner_cache_s3_secret_key=$EISERON_RUNNER_CACHE_SECRET_KEY"
   rules:
-    - if: $CI_COMMIT_BRANCH == "$[[ inputs.production_branch ]]" && $CI_PIPELINE_SOURCE != "schedule"
+    - if: $CI_COMMIT_BRANCH == "production" && $CI_PIPELINE_SOURCE != "schedule"
       changes:
         - runner/**/*
-    - if: $CI_COMMIT_BRANCH == "$[[ inputs.production_branch ]]" && $CI_PIPELINE_SOURCE != "schedule"
+    - if: $CI_COMMIT_BRANCH == "production" && $CI_PIPELINE_SOURCE != "schedule"
       when: on_success
   environment:
     name: production
@@ -349,11 +341,11 @@ preview-provision:
       --limit "$PREVIEW_HOST"
       --private-key "$PREVIEW_ANSIBLE_SSH_PRIVATE_KEY"
   rules:
-    - if: $CI_COMMIT_BRANCH == "$[[ inputs.production_branch ]]" && $CI_PIPELINE_SOURCE != "schedule"
+    - if: $CI_COMMIT_BRANCH == "production" && $CI_PIPELINE_SOURCE != "schedule"
       changes:
         - preview/**/*
         - preview-server.tf
-    - if: $CI_COMMIT_BRANCH == "$[[ inputs.production_branch ]]" && $CI_PIPELINE_SOURCE != "schedule"
+    - if: $CI_COMMIT_BRANCH == "production" && $CI_PIPELINE_SOURCE != "schedule"
       when: manual
   environment:
     name: production
@@ -394,11 +386,11 @@ keyserver-provision:
       --limit "$KEYSERVER_HOST"
       --private-key "$TANG_ANSIBLE_SSH_PRIVATE_KEY"
   rules:
-    - if: $CI_COMMIT_BRANCH == "$[[ inputs.production_branch ]]" && $CI_PIPELINE_SOURCE != "schedule"
+    - if: $CI_COMMIT_BRANCH == "production" && $CI_PIPELINE_SOURCE != "schedule"
       changes:
         - keyserver/**/*
         - prod-server.tf
-    - if: $CI_COMMIT_BRANCH == "$[[ inputs.production_branch ]]" && $CI_PIPELINE_SOURCE != "schedule"
+    - if: $CI_COMMIT_BRANCH == "production" && $CI_PIPELINE_SOURCE != "schedule"
       when: on_success
   environment:
     name: production
@@ -448,11 +440,11 @@ prod-provision:
       --limit "$PROD_HOST"
       --private-key "$PROD_ANSIBLE_SSH_PRIVATE_KEY"
   rules:
-    - if: $CI_COMMIT_BRANCH == "$[[ inputs.production_branch ]]" && $CI_PIPELINE_SOURCE != "schedule"
+    - if: $CI_COMMIT_BRANCH == "production" && $CI_PIPELINE_SOURCE != "schedule"
       changes:
         - prod/**/*
         - prod-server.tf
-    - if: $CI_COMMIT_BRANCH == "$[[ inputs.production_branch ]]" && $CI_PIPELINE_SOURCE != "schedule"
+    - if: $CI_COMMIT_BRANCH == "production" && $CI_PIPELINE_SOURCE != "schedule"
       when: on_success
   environment:
     name: production

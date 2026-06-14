@@ -15,6 +15,6 @@ want 'validate:' "facade nao define validate"
 want 'plan:' "facade nao define plan"
 want 'apply:' "facade nao define apply"
 want '    - ancestry-check' "apply nao depende de ancestry-check (gate)"
-want 'inputs.production_branch' "apply/workflow nao parametriza production_branch"
+want 'CI_COMMIT_BRANCH == "production"' "production branch nao esta hardcoded em apply/workflow"
 
 echo "PASS: ops facade wiring"
