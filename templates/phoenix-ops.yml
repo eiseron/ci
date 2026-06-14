@@ -1,0 +1,111 @@
+spec:
+  inputs:
+    chdir:
+      default: "."
+      description: "Directory of the Terraform root module."
+    secrets_file:
+      default: "secrets.enc.env"
+      description: "SOPS-encrypted env file decrypted into the job environment."
+    production_branch:
+      default: "production"
+      description: "Protected branch whose push triggers apply (deploy-promotion target)."
+    trunk_branch:
+      default: "main"
+      description: "Reviewed trunk; plan runs here, production must match it."
+    image_tag:
+      default: "v0.1.16"
+      description: "public-image-bases iac tag (tofu, sops, age, jq, the eiseron gem)."
+    app_name:
+      description: "Product slug; used as the preview scope identifier."
+    app_service:
+      description: "kamal service name (APP_SERVICE)."
+    app_image:
+      description: "Image repository path (APP_IMAGE)."
+    app_host:
+      description: "Public app host (APP_HOST)."
+    app_port:
+      default: "4000"
+      description: "Container port the app listens on (APP_PORT)."
+    app_release_module:
+      description: "Elixir release module for the post-deploy migrate hook (APP_RELEASE_MODULE.Release.migrate)."
+    tenant_slug:
+      description: "Per-product Postgres role/slug (PROD_TENANT_SLUG); managed-password tenant ensured idempotently each deploy."
+    db_url_scheme:
+      default: "ecto"
+      description: "Scheme for the assembled DATABASE_URL (DB_URL_SCHEME); ecto for Phoenix."
+    preview_zone:
+      description: "DNS zone for previews; served at <app_name>-mr-<iid><preview_suffix>.<preview_zone>."
+    preview_suffix:
+      default: "-preview"
+      description: "Suffix appended to the preview ref hostname."
+    scan_project:
+      description: "URL-path of the product app project whose still-open MRs the sweeper keeps (e.g. eiseron/afinados/afinados)."
+    automation_ref:
+      default: "v0.11.0"
+      description: "eiseron/stack/automation ref consumed by preview/prod templates (carries `eiseron preview *` and `eiseron prod *`)."
+---
+
+include:
+  - local: /templates/ops.yml
+    inputs:
+      chdir: $[[ inputs.chdir ]]
+      secrets_file: $[[ inputs.secrets_file ]]
+      production_branch: $[[ inputs.production_branch ]]
+      trunk_branch: $[[ inputs.trunk_branch ]]
+      image_tag: $[[ inputs.image_tag ]]
+  - local: /templates/preview-deploy.yml
+    inputs:
+      app_name: $[[ inputs.app_name ]]
+      app_port: $[[ inputs.app_port ]]
+      preview_zone: $[[ inputs.preview_zone ]]
+      preview_suffix: $[[ inputs.preview_suffix ]]
+      db_url_scheme: $[[ inputs.db_url_scheme ]]
+      automation_ref: $[[ inputs.automation_ref ]]
+      provisioning_ref: "v0.15.0"
+      deploy_stage: preview
+      stop_stage: preview
+  - local: /templates/preview-sweep.yml
+    inputs:
+      app_name: $[[ inputs.app_name ]]
+      preview_suffix: $[[ inputs.preview_suffix ]]
+      scan_project: $[[ inputs.scan_project ]]
+      automation_ref: $[[ inputs.automation_ref ]]
+      provisioning_ref: "v0.15.0"
+      sweep_stage: sweep
+  - local: /templates/prod-deploy.yml
+    inputs:
+      app_service: $[[ inputs.app_service ]]
+      app_image: $[[ inputs.app_image ]]
+      app_host: $[[ inputs.app_host ]]
+      app_port: $[[ inputs.app_port ]]
+      app_release_module: $[[ inputs.app_release_module ]]
+      tenant_slug: $[[ inputs.tenant_slug ]]
+      db_url_scheme: $[[ inputs.db_url_scheme ]]
+      automation_ref: $[[ inputs.automation_ref ]]
+      provisioning_ref: "v0.39.0"
+      deploy_stage: deploy
+  - local: /templates/prod-tenant.yml
+    inputs:
+      tenant_slug: $[[ inputs.tenant_slug ]]
+      automation_ref: $[[ inputs.automation_ref ]]
+      tenant_stage: tenant
+
+stages:
+  - lint
+  - plan
+  - apply
+  - tenant
+  - deploy
+  - preview
+  - sweep
+  - drift
+
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - if: $CI_COMMIT_BRANCH == "$[[ inputs.production_branch ]]"
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+    - if: $PREVIEW_MR_IID
+    - if: $PROD_ACTION == "deploy"
+    - if: $CI_PIPELINE_SOURCE == "web" && $PROD_TAG
