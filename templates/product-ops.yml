@@ -31,7 +31,7 @@ spec:
       default: "v0.1.20"
       description: "public-image-bases gem-runtime tag the restore drill runs on."
     automation_ref:
-      default: "v0.14.0"
+      default: "v0.15.0"
       description: "eiseron/stack/automation ref consumed by the prod templates (carries `eiseron prod *`)."
 ---
 
@@ -53,6 +53,18 @@ include:
       automation_ref: $[[ inputs.automation_ref ]]
       provisioning_ref: "v0.49.0"
       deploy_stage: deploy
+  - local: /templates/prod-backup.yml
+    inputs:
+      app_service: $[[ inputs.app_service ]]
+      app_image: $[[ inputs.app_image ]]
+      app_host: $[[ inputs.app_host ]]
+      app_port: $[[ inputs.app_port ]]
+      app_release_module: $[[ inputs.app_release_module ]]
+      tenant_slug: $[[ inputs.tenant_slug ]]
+      db_url_scheme: $[[ inputs.db_url_scheme ]]
+      automation_ref: $[[ inputs.automation_ref ]]
+      provisioning_ref: "v0.49.0"
+      backup_stage: backup
   - local: /templates/prod-tenant.yml
     inputs:
       tenant_slug: $[[ inputs.tenant_slug ]]
@@ -70,6 +82,7 @@ stages:
   - apply
   - tenant
   - deploy
+  - backup
   - drill
   - drift
 
