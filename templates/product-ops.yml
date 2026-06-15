@@ -31,7 +31,7 @@ spec:
       default: "v0.1.20"
       description: "public-image-bases gem-runtime tag the restore drill runs on."
     automation_ref:
-      default: "v0.11.0"
+      default: "v0.14.0"
       description: "eiseron/stack/automation ref consumed by the prod templates (carries `eiseron prod *`)."
 ---
 
