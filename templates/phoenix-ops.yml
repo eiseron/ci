@@ -35,7 +35,7 @@ spec:
     scan_project:
       description: "URL-path of the product app project whose still-open MRs the sweeper keeps (e.g. eiseron/afinados/afinados)."
     automation_ref:
-      default: "v0.15.0"
+      default: "v0.15.1"
       description: "eiseron/stack/automation ref consumed by preview/prod templates (carries `eiseron preview *` and `eiseron prod *`)."
 ---
 
