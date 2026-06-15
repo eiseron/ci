@@ -74,7 +74,7 @@ fmt:
   script:
     - tofu -chdir=$[[ inputs.chdir ]] fmt -check -recursive
   rules:
-    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_TARGET_BRANCH_NAME != "production"
 
 validate:
   stage: lint
@@ -85,7 +85,7 @@ validate:
   script:
     - tofu -chdir=$[[ inputs.chdir ]] validate
   rules:
-    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_TARGET_BRANCH_NAME != "production"
       changes:
         - "**/*.tf"
         - .terraform.lock.hcl

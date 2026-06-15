@@ -26,6 +26,8 @@ want 'GIT_STRATEGY: none' "drill needs no source checkout"
 want 'timeout: 15 minutes' "job must cap its runtime so a hung service does not hold a runner"
 want '[ "$n" -ge 30 ]' "postgres readiness wait must be bounded by an attempt cap"
 want 'exit 1' "bounded readiness wait must fail the job when postgres never comes up"
+want 'AWS_ACCESS_KEY_ID: "$PROD_DRILL_AWS_ACCESS_KEY_ID"' "R2 read creds must map from PROD_DRILL_AWS_* (AWS_* collides with the ops state backend)"
+want 'AWS_SECRET_ACCESS_KEY: "$PROD_DRILL_AWS_SECRET_ACCESS_KEY"' "R2 read secret must map from PROD_DRILL_AWS_*"
 
 want "if: '\$CI_PIPELINE_SOURCE == \"schedule\"'" "drill must run on the schedule (the alert)"
 want "if: '\$CI_PIPELINE_SOURCE == \"web\"'" "drill must be triggerable manually from the web"
