@@ -44,4 +44,4 @@ terraform-drift:
       }
   rules:
     - if: $CI_PIPELINE_SOURCE == "schedule" && $DRIFT_CHECK == "1"
-    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_PIPELINE_SOURCE != "trigger"
+    - if: $CI_COMMIT_BRANCH == "production" && $CI_PIPELINE_SOURCE != "trigger"
