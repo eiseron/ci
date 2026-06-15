@@ -217,7 +217,6 @@ runner-plan:
     when: always
   rules:
     - if: $ORG_RUNNER_STATE == "true" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_PIPELINE_SOURCE != "schedule"
-      when: manual
   environment:
     name: production
     action: prepare
