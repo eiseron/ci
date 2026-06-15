@@ -512,3 +512,76 @@ Inputs:
 The ops repo supplies (production scope): `PROD_BACKUP_BUCKET`,
 `CLOUDFLARE_ACCOUNT_ID`, `PROD_BACKUP_DRILL_KEY`, `AWS_ACCESS_KEY_ID`,
 `AWS_SECRET_ACCESS_KEY` (R2 read).
+
+## templates/prod-backup.yml
+
+Manual "backup now" job — an on-demand snapshot outside the daily cron, for
+verifying the pipe end to end or capturing a point before a risky change. On
+the ops image it runs `eiseron prod backup`, which `kamal accessory exec`s a
+one-shot `eiseron db backup` inside the already-running backup accessory: an
+ephemeral container with the accessory's env, network and `/backups` volume,
+so the backup runs fully configured without touching the running scheduler and
+without host access. The dump is `pg_dump | age`d to the recipients and
+uploaded to R2 (and the run self-prunes old objects, like the scheduled one).
+
+Gated to the **production branch**, `when: manual` — run a pipeline on
+`production` and click `prod-backup`. (Unlike `prod-restore` it needs no extra
+variable: a backup is non-destructive.)
+
+```yaml
+# in <product>-ops (included via product-ops/phoenix-ops)
+include:
+  - project: eiseron/stack/ci
+    file: /templates/prod-backup.yml
+    ref: vX.Y.Z
+    inputs:
+      app_service: app
+stages: [backup]
+```
+
+Inputs: `app_service` (the accessory is `<app_service>-backup`), `automation_ref`
+(carries `eiseron prod backup`), `image_tag` (ops), `backup_stage` (default
+`backup`). Reuses the accessory's production-scope CI vars (PG/AWS/recipients);
+no new var to pass.
+
+## templates/prod-restore.yml
+
+Manual restore job — the destructive DR action (distinct from the weekly
+`db-restore-drill`, which only *tests* restorability in a throwaway DB). On the
+ops image it runs `eiseron prod restore`, which pipes the **drill private key
+over `ssh → docker exec -i`** into the running backup accessory (the key is on
+stdin only — never in argv, `docker inspect`, disk, or shell history; no
+decryption key is added to the always-on sidecar). Inside, `eiseron db restore`
+**snapshots the current database first** (so the overwrite is reversible),
+decrypts the chosen object with the drill key (`age -i -`), `DROP SCHEMA public
+CASCADE; CREATE SCHEMA` as the database owner (in place — no `CREATEDB`, no
+re-owning), loads the dump, and verifies. The drill key alone decrypts any
+backup (multi-recipient age); the offline cold DR key is never needed for a
+routine restore.
+
+Gated to the **production branch**, `when: manual`, and the rule requires
+**both** run variables, so the button only appears when armed:
+
+| run variable | answers | role |
+|--------------|---------|------|
+| `PROD_RESTORE_KEY` | *which* backup (`<prefix>/<stamp>.sql.age`, or `latest`) | functional — what to restore |
+| `PROD_RESTORE_CONFIRM` | *are you sure* you will overwrite the live DB | safety — must equal the database name (`<slug>_prod`), the type-the-name-to-confirm guard; the gem refuses otherwise |
+
+To restore: run a pipeline on `production` with both variables set, then click
+`prod-restore`. If it was the wrong choice, restore again from the pre-restore
+snapshot the job took.
+
+```yaml
+# in <product>-ops (included via product-ops/phoenix-ops)
+include:
+  - project: eiseron/stack/ci
+    file: /templates/prod-restore.yml
+    ref: vX.Y.Z
+    inputs:
+      app_service: app
+stages: [restore]
+```
+
+Inputs: `app_service`, `automation_ref` (carries `eiseron prod restore`),
+`image_tag` (ops), `restore_stage` (default `restore`). Reuses the accessory's
+production-scope env; the drill key reaches the host only over stdin.
