@@ -1,0 +1,41 @@
+spec:
+  inputs:
+    image_tag:
+      default: "v0.1.15"
+      description: "public-image-bases ops image tag (ssh + ruby; the gem runs the restore over ssh)."
+    automation_ref:
+      default: "v0.16.0"
+      description: "eiseron/stack/automation tag providing `eiseron prod restore`."
+    app_service:
+      description: "kamal service name; the backup accessory the restore execs into is <app_service>-backup."
+    restore_stage:
+      default: "restore"
+      description: "Pipeline stage for the restore job (the consumer must declare it)."
+---
+prod-restore:
+  stage: $[[ inputs.restore_stage ]]
+  needs: []
+  image:
+    name: registry.gitlab.com/eiseron/stack/public-image-bases/ops:$[[ inputs.image_tag ]]
+  tags:
+    - self-hosted
+  environment:
+    name: production
+  resource_group: production
+  variables:
+    GIT_STRATEGY: none
+    APP_SERVICE: "$[[ inputs.app_service ]]"
+  before_script:
+    - gem install specific_install --no-document
+    - gem specific_install https://gitlab.com/eiseron/stack/automation.git -b "$[[ inputs.automation_ref ]]"
+    - export PATH="$(ruby -e 'print Gem.user_dir')/bin:$PATH"
+    - eval "$(ssh-agent -s)"
+    - install -d -m 700 ~/.ssh
+    - install -m 600 "$PROD_SSH_PRIVATE_KEY" ~/.ssh/prod_deploy_key
+    - ssh-add ~/.ssh/prod_deploy_key
+    - printf 'Host *\n  StrictHostKeyChecking accept-new\n' > ~/.ssh/config
+  script:
+    - eiseron prod restore
+  rules:
+    - if: $CI_COMMIT_BRANCH == "production" && $PROD_RESTORE_KEY && $PROD_RESTORE_CONFIRM
+      when: manual
