@@ -3,10 +3,10 @@ spec:
     app_name:
       default: "app"
       description: "OTP app name; the template derives the test database as <app_name>_test."
-    image_tag:
-      default: "v0.1.0"
-      description: "public-image-bases elixir-builder tag to run jobs on."
 ---
+include:
+  - local: /lock.yml
+
 stages:
   - lint
   - test
@@ -21,7 +21,7 @@ stages:
 
 lint:
   stage: lint
-  image: registry.gitlab.com/eiseron/stack/public-image-bases/elixir-builder:$[[ inputs.image_tag ]]
+  image: $STACK_ELIXIR_BUILDER_IMAGE
   tags:
     - self-hosted
   cache:
@@ -41,7 +41,7 @@ lint:
 
 test:
   stage: test
-  image: registry.gitlab.com/eiseron/stack/public-image-bases/elixir-builder:$[[ inputs.image_tag ]]
+  image: $STACK_ELIXIR_BUILDER_IMAGE
   tags:
     - self-hosted
   services:

@@ -3,9 +3,6 @@ spec:
     chdir:
       default: "."
       description: "Directory of the Terraform root module to check."
-    image_tag:
-      default: "v0.1.16"
-      description: "public-image-bases iac tag to run the job on."
     stage:
       default: "drift"
       description: "Pipeline stage for the job (consumer must declare it after apply, so the main-branch run asserts convergence)."
@@ -16,10 +13,13 @@ spec:
       default: "production"
       description: "Environment whose protected variables (AGE_KEY) the job receives."
 ---
+include:
+  - local: /lock.yml
+
 terraform-drift:
   stage: $[[ inputs.stage ]]
   image:
-    name: registry.gitlab.com/eiseron/stack/public-image-bases/iac:$[[ inputs.image_tag ]]
+    name: $STACK_IAC_IMAGE
     entrypoint: [""]
   tags:
     - self-hosted

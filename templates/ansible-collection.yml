@@ -6,17 +6,17 @@ spec:
     name:
       default: ""
       description: "Optional job-name suffix so multiple includes (one per playbook) don't collide."
-    image_tag:
-      default: "v0.1.3"
-      description: "public-image-bases python-ansible tag to run the job on."
     stage:
       default: "validate"
       description: "Pipeline stage for the job (consumer must declare it)."
 ---
+include:
+  - local: /lock.yml
+
 ansible-collection$[[ inputs.name ]]:
   stage: $[[ inputs.stage ]]
   image:
-    name: registry.gitlab.com/eiseron/stack/public-image-bases/python-ansible:$[[ inputs.image_tag ]]
+    name: $STACK_PYTHON_ANSIBLE_IMAGE
   tags:
     - self-hosted
   cache: []

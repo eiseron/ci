@@ -18,8 +18,7 @@ absent() {
 
 want 'db-restore-drill:' "drill job is missing"
 want 'eiseron db restore-drill' "job must run the gem drill command"
-want 'gem-runtime:$[[ inputs.image_tag ]]' "image must be the pinned gem-runtime tag"
-want 'default: "v0.1.19"' "image_tag must default to the published gem-runtime tag"
+want '$STACK_GEM_RUNTIME_IMAGE' "image must be the pinned gem-runtime tag"
 want 'default: "postgres:18"' "pg_image must default to a throwaway postgres matching the prod major"
 want 'name: production' "environment must be production so the drill key and R2 read creds resolve"
 want 'GIT_STRATEGY: none' "drill needs no source checkout"

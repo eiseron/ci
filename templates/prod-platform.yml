@@ -1,20 +1,17 @@
 spec:
   inputs:
-    image_tag:
-      default: "v0.1.15"
-      description: "public-image-bases ops image tag (kamal + docker + ssh + ruby + git)."
-    provisioning_ref:
-      default: "v0.37.0"
-      description: "eiseron/stack/provisioning tag carrying the canonical kamal/platform manifest."
     platform_stage:
       default: "platform"
       description: "Pipeline stage for the platform job (the consumer must declare it)."
 ---
+include:
+  - local: /lock.yml
+
 prod-platform:
   stage: $[[ inputs.platform_stage ]]
   needs: []
   image:
-    name: registry.gitlab.com/eiseron/stack/public-image-bases/ops:$[[ inputs.image_tag ]]
+    name: $STACK_OPS_IMAGE
   tags:
     - self-hosted
   environment:
@@ -23,7 +20,7 @@ prod-platform:
   variables:
     GIT_STRATEGY: none
   before_script:
-    - git clone --depth 1 --branch "$[[ inputs.provisioning_ref ]]" https://gitlab.com/eiseron/stack/provisioning.git /tmp/provisioning
+    - git clone "$STACK_PROVISIONING_REPO" /tmp/provisioning && git -C /tmp/provisioning checkout "$STACK_PROVISIONING_SHA"
     - cp -r /tmp/provisioning/kamal/platform/. .
     - eval "$(ssh-agent -s)"
     - install -d -m 700 ~/.ssh

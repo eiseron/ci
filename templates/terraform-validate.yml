@@ -6,17 +6,17 @@ spec:
     name:
       default: ""
       description: "Suffix for the job name so the template can be included once per module (e.g. -product)."
-    image_tag:
-      default: "v0.1.16"
-      description: "public-image-bases iac tag to run the job on."
     stage:
       default: "validate"
       description: "Pipeline stage for the job (consumer must declare it)."
 ---
+include:
+  - local: /lock.yml
+
 terraform-validate$[[ inputs.name ]]:
   stage: $[[ inputs.stage ]]
   image:
-    name: registry.gitlab.com/eiseron/stack/public-image-bases/iac:$[[ inputs.image_tag ]]
+    name: $STACK_IAC_IMAGE
     entrypoint: [""]
   tags:
     - self-hosted

@@ -1,8 +1,5 @@
 spec:
   inputs:
-    image_tag:
-      default: "v0.1.19"
-      description: "public-image-bases gem-runtime tag (ruby + eiseron CLI + age + pg client + aws-sdk)."
     pg_image:
       default: "postgres:18"
       description: "Throwaway Postgres image the drill restores into (match the production server major)."
@@ -13,11 +10,14 @@ spec:
       default: "drill"
       description: "Pipeline stage for the drill job (the consumer must declare it)."
 ---
+include:
+  - local: /lock.yml
+
 db-restore-drill:
   stage: $[[ inputs.drill_stage ]]
   timeout: 15 minutes
   image:
-    name: registry.gitlab.com/eiseron/stack/public-image-bases/gem-runtime:$[[ inputs.image_tag ]]
+    name: $STACK_GEM_RUNTIME_IMAGE
   tags:
     - self-hosted
   environment:

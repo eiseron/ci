@@ -14,7 +14,7 @@ want() {
 
 want "prod-restore:" "restore job is missing"
 want "eiseron prod restore" "restore job does not invoke the eiseron CLI"
-want 'automation.git -b "$[[ inputs.automation_ref ]]"' "the eiseron gem is not pinned to inputs.automation_ref"
+want '"$STACK_AUTOMATION_REPO" -b "$STACK_AUTOMATION_SHA"' "the eiseron gem is not pinned to inputs.automation_ref"
 want 'APP_SERVICE: "$[[ inputs.app_service ]]"' "APP_SERVICE is not fed from inputs"
 want "ssh-add ~/.ssh/prod_deploy_key" "restore job does not set up the deploy ssh key"
 

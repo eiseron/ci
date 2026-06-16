@@ -14,7 +14,7 @@ want() {
 
 want "prod-tenant:" "tenant job is missing"
 want "eiseron prod tenant" "tenant job does not invoke the eiseron CLI"
-want 'automation.git -b "$[[ inputs.automation_ref ]]"' "the eiseron gem is not pinned to inputs.automation_ref"
+want '"$STACK_AUTOMATION_REPO" -b "$STACK_AUTOMATION_SHA"' "the eiseron gem is not pinned to inputs.automation_ref"
 want 'PROD_TENANT_SLUG: "$[[ inputs.tenant_slug ]]"' "PROD_TENANT_SLUG is not fed from inputs"
 want "prod_deploy_key" "tenant job does not install the prod SSH key"
 want 'CI_COMMIT_BRANCH == "production"' "tenant job must be gated to the production branch (it provisions over SSH; must not run on main and block promotion)"

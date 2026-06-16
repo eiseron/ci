@@ -1,22 +1,19 @@
 spec:
   inputs:
-    image_tag:
-      default: "v0.1.15"
-      description: "public-image-bases ops image tag (kamal + docker + ssh + ruby + git)."
-    automation_ref:
-      default: "v0.14.0"
-      description: "eiseron/stack/automation tag providing `eiseron prod tenant`."
     tenant_slug:
       description: "Per-product Postgres role/slug (PROD_TENANT_SLUG)."
     tenant_stage:
       default: "tenant"
       description: "Pipeline stage for the tenant job (the consumer must declare it)."
 ---
+include:
+  - local: /lock.yml
+
 prod-tenant:
   stage: $[[ inputs.tenant_stage ]]
   needs: []
   image:
-    name: registry.gitlab.com/eiseron/stack/public-image-bases/ops:$[[ inputs.image_tag ]]
+    name: $STACK_OPS_IMAGE
   tags:
     - self-hosted
   environment:
@@ -27,7 +24,7 @@ prod-tenant:
     PROD_TENANT_SLUG: "$[[ inputs.tenant_slug ]]"
   before_script:
     - gem install specific_install --no-document
-    - gem specific_install https://gitlab.com/eiseron/stack/automation.git -b "$[[ inputs.automation_ref ]]"
+    - gem specific_install "$STACK_AUTOMATION_REPO" -b "$STACK_AUTOMATION_SHA"
     - export PATH="$(ruby -e 'print Gem.user_dir')/bin:$PATH"
     - eval "$(ssh-agent -s)"
     - install -d -m 700 ~/.ssh

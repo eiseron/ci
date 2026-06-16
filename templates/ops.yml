@@ -6,17 +6,14 @@ spec:
     secrets_file:
       default: "secrets.enc.env"
       description: "SOPS-encrypted env file decrypted into the job environment."
-    image_tag:
-      default: "v0.1.16"
-      description: "public-image-bases iac tag (ships tofu, sops, age, jq, the eiseron gem)."
 ---
 
 include:
+  - local: /lock.yml
   - local: /templates/tofu-lint.yml
     inputs:
       stage: lint
       chdir: $[[ inputs.chdir ]]
-      image_tag: $[[ inputs.image_tag ]]
   - local: /templates/age-key-isolation.yml
     inputs:
       stage: lint
@@ -27,7 +24,6 @@ include:
     inputs:
       stage: drift
       chdir: $[[ inputs.chdir ]]
-      image_tag: $[[ inputs.image_tag ]]
       secrets_file: $[[ inputs.secrets_file ]]
 
 stages:
@@ -58,7 +54,7 @@ cache:
 
 default:
   image:
-    name: registry.gitlab.com/eiseron/stack/public-image-bases/iac:$[[ inputs.image_tag ]]
+    name: $STACK_IAC_IMAGE
     entrypoint: [""]
   tags:
     - self-hosted

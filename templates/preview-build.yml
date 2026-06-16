@@ -1,11 +1,5 @@
 spec:
   inputs:
-    builder_tag:
-      default: "latest"
-      description: "public-image-bases elixir-builder tag used to compile and build the image."
-    deployer_tag:
-      default: "latest"
-      description: "public-image-bases alpine-deploy tag used by the trigger jobs."
     app_name:
       default: "app"
       description: "Product slug; the preview is named <app_name>-mr-<iid><preview_suffix>."
@@ -27,13 +21,16 @@ spec:
       default: "preview"
       description: "Pipeline stage for the deploy/stop preview trigger jobs (the consumer must declare it)."
 ---
+include:
+  - local: /lock.yml
+
 build_image:
   stage: $[[ inputs.build_stage ]]
   timeout: 15 minutes
   needs: []
   allow_failure: true
   image:
-    name: registry.gitlab.com/eiseron/stack/public-image-bases/elixir-builder:$[[ inputs.builder_tag ]]
+    name: $STACK_ELIXIR_BUILDER_IMAGE
   before_script: []
   cache:
     - key:
@@ -83,7 +80,7 @@ build_image:
 
 .preview-trigger:
   image:
-    name: registry.gitlab.com/eiseron/stack/public-image-bases/alpine-deploy:$[[ inputs.deployer_tag ]]
+    name: $STACK_ALPINE_DEPLOY_IMAGE
   before_script: []
 
 deploy_preview:

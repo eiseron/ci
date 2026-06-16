@@ -17,8 +17,8 @@ want "preview-stop:" "stop job is missing"
 
 want "eiseron preview deploy" "deploy job does not invoke the eiseron CLI"
 want "eiseron preview stop" "stop job does not invoke the eiseron CLI"
-want 'automation.git -b "$[[ inputs.automation_ref ]]"' "the eiseron gem is not pinned to inputs.automation_ref"
-want 'provisioning.git,$[[ inputs.provisioning_ref ]]' "collection install is not pinned to inputs.provisioning_ref"
+want '"$STACK_AUTOMATION_REPO" -b "$STACK_AUTOMATION_SHA"' "the eiseron gem is not pinned to inputs.automation_ref"
+want 'git+$STACK_PROVISIONING_REPO,$STACK_PROVISIONING_SHA' "collection install is not pinned to inputs.provisioning_ref"
 
 want 'PREVIEW_ACTION == "deploy"' "deploy job is not gated on PREVIEW_ACTION deploy"
 want 'PREVIEW_ACTION == "stop"' "stop job is not gated on PREVIEW_ACTION stop"

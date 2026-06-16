@@ -3,10 +3,10 @@ spec:
     go_image:
       default: "golang:1.25"
       description: "Image used for the test job."
-    lint_image:
-      default: "registry.gitlab.com/eiseron/stack/public-image-bases/go-tools:v0.1.7"
-      description: "Image with go, golangci-lint and the eiseron gem for the lint job."
 ---
+include:
+  - local: /lock.yml
+
 stages:
   - lint
   - test
@@ -27,7 +27,7 @@ stages:
 
 lint:
   stage: lint
-  image: $[[ inputs.lint_image ]]
+  image: $STACK_GO_TOOLS_IMAGE
   tags:
     - self-hosted
   variables:

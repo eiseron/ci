@@ -27,12 +27,6 @@
 #   PROD_DEPLOYER_TRIGGER_TOKEN                pipeline trigger token for -ops
 spec:
   inputs:
-    image_tag:
-      default: "v0.1.15"
-      description: "public-image-bases tag: elixir-builder (build) + python-ansible (upload/trigger, carries ruby)."
-    automation_ref:
-      default: "v0.8.1"
-      description: "eiseron/stack/automation tag providing `eiseron prod upload` and `prod trigger`."
     app_name:
       default: "app"
       description: "Product slug; used for logging and the deploy environment."
@@ -56,26 +50,29 @@ spec:
       default: "deploy"
       description: "Stage for the -ops trigger job."
 ---
+include:
+  - local: /lock.yml
+
 .eiseron-prod-tag:
   rules:
     - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/
 
 .eiseron-prod-gem:
   image:
-    name: registry.gitlab.com/eiseron/stack/public-image-bases/python-ansible:$[[ inputs.image_tag ]]
+    name: $STACK_PYTHON_ANSIBLE_IMAGE
   tags:
     - self-hosted
   variables:
     GIT_STRATEGY: none
   before_script:
     - gem install specific_install --no-document
-    - gem specific_install https://gitlab.com/eiseron/stack/automation.git -b "$[[ inputs.automation_ref ]]"
+    - gem specific_install "$STACK_AUTOMATION_REPO" -b "$STACK_AUTOMATION_SHA"
 
 prod-build:
   extends: .eiseron-prod-tag
   stage: $[[ inputs.build_stage ]]
   image:
-    name: registry.gitlab.com/eiseron/stack/public-image-bases/elixir-builder:$[[ inputs.image_tag ]]
+    name: $STACK_ELIXIR_BUILDER_IMAGE
   tags:
     - self-hosted
   variables:
@@ -134,7 +131,7 @@ prod-assets-upload:
     PROD_SOURCEMAPS_BUCKET: $[[ inputs.sourcemaps_bucket ]]
   before_script:
     - gem install specific_install --no-document
-    - gem specific_install https://gitlab.com/eiseron/stack/automation.git -b "$[[ inputs.automation_ref ]]"
+    - gem specific_install "$STACK_AUTOMATION_REPO" -b "$STACK_AUTOMATION_SHA"
     - gem install aws-sdk-s3 -v "~> 1.215" --no-document
   script:
     - eiseron prod upload

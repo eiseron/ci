@@ -3,13 +3,13 @@ spec:
     version_file:
       default: VERSION
       description: File holding the bare semver string (no leading 'v').
-    automation_ref:
-      default: v0.1.2
-      description: Tag of eiseron/stack/automation (the eiseron_automation gem) to install.
     image:
       default: ruby:3.3-alpine
       description: Ruby image used to install and run the eiseron CLI.
 ---
+include:
+  - local: /lock.yml
+
 
 # Version-driven release tagging.
 #
@@ -46,6 +46,6 @@ release-tag:
   before_script:
     - apk add --no-cache git
     - gem install specific_install --no-document
-    - gem specific_install https://gitlab.com/eiseron/stack/automation.git -b "$[[ inputs.automation_ref ]]"
+    - gem specific_install "$STACK_AUTOMATION_REPO" -b "$STACK_AUTOMATION_SHA"
   script:
     - eiseron release tag

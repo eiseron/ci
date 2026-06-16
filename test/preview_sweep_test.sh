@@ -14,8 +14,8 @@ want() {
 
 want "preview-sweep:" "sweep job is missing"
 want "eiseron preview sweep" "sweep does not invoke the eiseron CLI"
-want 'automation.git -b "$[[ inputs.automation_ref ]]"' "the eiseron gem is not pinned to inputs.automation_ref"
-want 'provisioning.git,$[[ inputs.provisioning_ref ]]' "collection install is not pinned to inputs.provisioning_ref"
+want '"$STACK_AUTOMATION_REPO" -b "$STACK_AUTOMATION_SHA"' "the eiseron gem is not pinned to inputs.automation_ref"
+want 'git+$STACK_PROVISIONING_REPO,$STACK_PROVISIONING_SHA' "collection install is not pinned to inputs.provisioning_ref"
 want "EISERON_PREVIEW_SCAN_PROJECT" "sweep does not pass the scan project to the CLI"
 want 'CI_PIPELINE_SOURCE == "schedule"' "sweep does not run on a schedule"
 

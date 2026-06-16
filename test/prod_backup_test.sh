@@ -14,9 +14,9 @@ want() {
 
 want "prod-backup:" "backup job is missing"
 want "eiseron prod backup" "backup job does not invoke the eiseron CLI"
-want 'automation.git -b "$[[ inputs.automation_ref ]]"' "the eiseron gem is not pinned to inputs.automation_ref"
+want '"$STACK_AUTOMATION_REPO" -b "$STACK_AUTOMATION_SHA"' "the eiseron gem is not pinned to inputs.automation_ref"
 want 'kamal/app/.' "the canonical kamal/app manifest is not copied from provisioning"
-want 'provisioning.git /tmp/provisioning' "provisioning is not cloned for the canonical manifest"
+want '"$STACK_PROVISIONING_REPO" /tmp/provisioning' "provisioning is not cloned for the canonical manifest"
 
 want 'APP_SERVICE: "$[[ inputs.app_service ]]"' "APP_SERVICE is not fed from inputs (committed, not a CI var)"
 want 'PROD_TENANT_SLUG: "$[[ inputs.tenant_slug ]]"' "PROD_TENANT_SLUG is not fed from inputs"

@@ -1,14 +1,5 @@
 spec:
   inputs:
-    image_tag:
-      default: "v0.1.6"
-      description: "public-image-bases python-ansible tag (carries ruby + ansible)."
-    automation_ref:
-      default: "v0.2.0"
-      description: "eiseron/stack/automation tag providing the eiseron CLI."
-    provisioning_ref:
-      default: "v0.8.0"
-      description: "eiseron.provisioning collection tag the playbook runs from."
     app_name:
       default: "app"
       description: "Product slug; the deploy is named <app_name>-mr-<iid><preview_suffix>."
@@ -36,9 +27,12 @@ spec:
       default: "deploy"
       description: "Pipeline stage for the stop job (the consumer must declare it)."
 ---
+include:
+  - local: /lock.yml
+
 .eiseron-preview-base:
   image:
-    name: registry.gitlab.com/eiseron/stack/public-image-bases/python-ansible:$[[ inputs.image_tag ]]
+    name: $STACK_PYTHON_ANSIBLE_IMAGE
   tags:
     - self-hosted
   cache: []
@@ -58,8 +52,8 @@ spec:
     - cp "$PREVIEW_ANSIBLE_SSH_PRIVATE_KEY" "$CI_PROJECT_DIR/preview_key"
     - chmod 600 "$CI_PROJECT_DIR/preview_key"
     - gem install specific_install --no-document
-    - gem specific_install https://gitlab.com/eiseron/stack/automation.git -b "$[[ inputs.automation_ref ]]"
-    - ansible-galaxy collection install "git+https://gitlab.com/eiseron/stack/provisioning.git,$[[ inputs.provisioning_ref ]]" --force
+    - gem specific_install "$STACK_AUTOMATION_REPO" -b "$STACK_AUTOMATION_SHA"
+    - ansible-galaxy collection install "git+$STACK_PROVISIONING_REPO,$STACK_PROVISIONING_SHA" --force
 
 preview-deploy:
   extends: .eiseron-preview-base

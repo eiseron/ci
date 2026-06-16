@@ -1,0 +1,12 @@
+gems:
+  gitlab.com/eiseron/stack/automation: "~> 0.17"
+repos:
+  gitlab.com/eiseron/stack/provisioning: "~> 0.50"
+images:
+  registry.gitlab.com/eiseron/stack/public-image-bases/iac: "~> 0.1"
+  registry.gitlab.com/eiseron/stack/public-image-bases/ops: "~> 0.1"
+  registry.gitlab.com/eiseron/stack/public-image-bases/gem-runtime: "~> 0.1"
+  registry.gitlab.com/eiseron/stack/public-image-bases/elixir-builder: "~> 0.1"
+  registry.gitlab.com/eiseron/stack/public-image-bases/alpine-deploy: "~> 0.1"
+  registry.gitlab.com/eiseron/stack/public-image-bases/python-ansible: "~> 0.1"
+  registry.gitlab.com/eiseron/stack/public-image-bases/go-tools: "~> 0.1"

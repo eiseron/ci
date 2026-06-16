@@ -1,14 +1,5 @@
 spec:
   inputs:
-    image_tag:
-      default: "v0.1.15"
-      description: "public-image-bases ops image tag (kamal + docker + ssh + ruby + git)."
-    automation_ref:
-      default: "v0.15.1"
-      description: "eiseron/stack/automation tag providing `eiseron prod backup`."
-    provisioning_ref:
-      default: "v0.49.0"
-      description: "eiseron/stack/provisioning tag carrying the canonical kamal/app manifest with the backup accessory."
     app_service:
       description: "kamal service name, consumed by the manifest as APP_SERVICE."
     app_image:
@@ -29,11 +20,14 @@ spec:
       default: "backup"
       description: "Pipeline stage for the backup job (the consumer must declare it)."
 ---
+include:
+  - local: /lock.yml
+
 prod-backup:
   stage: $[[ inputs.backup_stage ]]
   needs: []
   image:
-    name: registry.gitlab.com/eiseron/stack/public-image-bases/ops:$[[ inputs.image_tag ]]
+    name: $STACK_OPS_IMAGE
   tags:
     - self-hosted
   environment:
@@ -50,9 +44,9 @@ prod-backup:
     DB_URL_SCHEME: "$[[ inputs.db_url_scheme ]]"
   before_script:
     - gem install specific_install --no-document
-    - gem specific_install https://gitlab.com/eiseron/stack/automation.git -b "$[[ inputs.automation_ref ]]"
+    - gem specific_install "$STACK_AUTOMATION_REPO" -b "$STACK_AUTOMATION_SHA"
     - export PATH="$(ruby -e 'print Gem.user_dir')/bin:$PATH"
-    - git clone --depth 1 --branch "$[[ inputs.provisioning_ref ]]" https://gitlab.com/eiseron/stack/provisioning.git /tmp/provisioning
+    - git clone "$STACK_PROVISIONING_REPO" /tmp/provisioning && git -C /tmp/provisioning checkout "$STACK_PROVISIONING_SHA"
     - cp -r /tmp/provisioning/kamal/app/. .
     - eval "$(ssh-agent -s)"
     - install -d -m 700 ~/.ssh

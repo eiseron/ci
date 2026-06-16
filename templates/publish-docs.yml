@@ -25,9 +25,6 @@ spec:
       description: "Full path of the docs site repo, e.g. eiseron/group/site."
     locale_map:
       description: "JSON object mapping a source locale dir to a site dest dir."
-    automation_ref:
-      default: "v0.4.0"
-      description: "Tag of eiseron/stack/automation (the eiseron_automation gem)."
     image:
       default: "ruby:3.3-alpine"
       description: "Ruby image used to install and run the eiseron CLI."
@@ -44,6 +41,9 @@ spec:
       default: "publish"
       description: "Pipeline stage for the job."
 ---
+include:
+  - local: /lock.yml
+
 
 publish-docs:
   stage: $[[ inputs.stage ]]
@@ -62,6 +62,6 @@ publish-docs:
   before_script:
     - apk add --no-cache git
     - gem install specific_install --no-document
-    - gem specific_install https://gitlab.com/eiseron/stack/automation.git -b "$[[ inputs.automation_ref ]]"
+    - gem specific_install "$STACK_AUTOMATION_REPO" -b "$STACK_AUTOMATION_SHA"
   script:
     - eiseron docs publish

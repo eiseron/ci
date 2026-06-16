@@ -18,7 +18,7 @@ absent() {
 
 want 'tofu-lint:' "lint job is missing"
 want 'eiseron tofu lint' "job does not invoke the eiseron gem command"
-want '/iac:' "job does not run on the gem-bearing iac image"
+want '$STACK_IAC_IMAGE' "job does not run on the gem-bearing iac image"
 want 'before_script: []' "tofu-lint nao pode herdar o sops-decrypt do before_script default"
 want 'CI_PIPELINE_SOURCE == "merge_request_event"' "tofu-lint must run on merge request pipelines"
 absent 'CI_DEFAULT_BRANCH' "tofu-lint must not run after merge (no default-branch rule)"

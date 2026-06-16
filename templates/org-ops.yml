@@ -6,9 +6,6 @@ spec:
     secrets_file:
       default: "secrets.enc.env"
       description: "SOPS-encrypted env file decrypted into the job environment."
-    image_tag:
-      default: "v0.1.16"
-      description: "public-image-bases iac tag (tofu, sops, age, jq, the eiseron gem)."
     runner_state:
       type: boolean
       default: false
@@ -47,11 +44,11 @@ spec:
 ---
 
 include:
+  - local: /lock.yml
   - local: /templates/ops.yml
     inputs:
       chdir: $[[ inputs.chdir ]]
       secrets_file: $[[ inputs.secrets_file ]]
-      image_tag: $[[ inputs.image_tag ]]
   - local: /templates/prod-platform.yml
     rules:
       - if: '"$[[ inputs.prod_platform ]]" == "true"'
@@ -272,7 +269,7 @@ runner-provision:
   tags:
     - saas-linux-small-amd64
   image:
-    name: registry.gitlab.com/eiseron/stack/public-image-bases/python-ansible:latest
+    name: $STACK_PYTHON_ANSIBLE_IMAGE
     entrypoint: [""]
   before_script: []
   parallel:
@@ -315,7 +312,7 @@ preview-provision:
   stage: preview-provision
   timeout: 10 minutes
   image:
-    name: registry.gitlab.com/eiseron/stack/public-image-bases/python-ansible:v0.1.5
+    name: $STACK_PYTHON_ANSIBLE_IMAGE
     entrypoint: [""]
   before_script: []
   parallel:
@@ -353,7 +350,7 @@ keyserver-provision:
   stage: keyserver-provision
   timeout: 10 minutes
   image:
-    name: registry.gitlab.com/eiseron/stack/public-image-bases/python-ansible:v0.1.5
+    name: $STACK_PYTHON_ANSIBLE_IMAGE
     entrypoint: [""]
   before_script: []
   parallel:
@@ -398,7 +395,7 @@ prod-provision:
   stage: prod-provision
   timeout: 15 minutes
   image:
-    name: registry.gitlab.com/eiseron/stack/public-image-bases/python-ansible:v0.1.5
+    name: $STACK_PYTHON_ANSIBLE_IMAGE
     entrypoint: [""]
   before_script: []
   parallel:

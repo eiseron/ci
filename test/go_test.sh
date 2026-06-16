@@ -13,7 +13,7 @@ want() {
 }
 
 want "eiseron go lint" "lint step should run the eiseron gem command"
-want "go-tools" "lint job should use the go-tools image"
+want '$STACK_GO_TOOLS_IMAGE' "lint job should use the locked go-tools image"
 want "go test ./... -race" "race test step is missing"
 
 echo "PASS: go template wiring"

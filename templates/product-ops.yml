@@ -6,9 +6,6 @@ spec:
     secrets_file:
       default: "secrets.enc.env"
       description: "SOPS-encrypted env file decrypted into the job environment."
-    image_tag:
-      default: "v0.1.16"
-      description: "public-image-bases iac tag (tofu, sops, age, jq, the eiseron gem)."
     app_name:
       description: "Product slug; the restore drill's backup object prefix (PROD_BACKUP_NAME)."
     app_service:
@@ -27,12 +24,6 @@ spec:
     db_url_scheme:
       default: "ecto"
       description: "Scheme for the assembled DATABASE_URL (DB_URL_SCHEME)."
-    gem_runtime_tag:
-      default: "v0.1.21"
-      description: "public-image-bases gem-runtime tag the restore drill runs on."
-    automation_ref:
-      default: "v0.17.0"
-      description: "eiseron/stack/automation ref consumed by the prod templates (carries `eiseron prod *`)."
 ---
 
 include:
@@ -40,7 +31,6 @@ include:
     inputs:
       chdir: $[[ inputs.chdir ]]
       secrets_file: $[[ inputs.secrets_file ]]
-      image_tag: $[[ inputs.image_tag ]]
   - local: /templates/prod-deploy.yml
     inputs:
       app_service: $[[ inputs.app_service ]]
@@ -50,8 +40,6 @@ include:
       app_release_module: $[[ inputs.app_release_module ]]
       tenant_slug: $[[ inputs.tenant_slug ]]
       db_url_scheme: $[[ inputs.db_url_scheme ]]
-      automation_ref: $[[ inputs.automation_ref ]]
-      provisioning_ref: "v0.50.0"
       deploy_stage: deploy
   - local: /templates/prod-backup.yml
     inputs:
@@ -62,29 +50,22 @@ include:
       app_release_module: $[[ inputs.app_release_module ]]
       tenant_slug: $[[ inputs.tenant_slug ]]
       db_url_scheme: $[[ inputs.db_url_scheme ]]
-      automation_ref: $[[ inputs.automation_ref ]]
-      provisioning_ref: "v0.50.0"
       backup_stage: backup
   - local: /templates/prod-restore.yml
     inputs:
       app_service: $[[ inputs.app_service ]]
-      automation_ref: $[[ inputs.automation_ref ]]
       restore_stage: restore
   - local: /templates/prod-tenant.yml
     inputs:
       tenant_slug: $[[ inputs.tenant_slug ]]
-      automation_ref: $[[ inputs.automation_ref ]]
       tenant_stage: tenant
   - local: /templates/db-restore-drill.yml
     inputs:
       app_name: $[[ inputs.app_name ]]
-      image_tag: $[[ inputs.gem_runtime_tag ]]
       drill_stage: drill
   - local: /templates/db-backup-verify.yml
     inputs:
       app_name: $[[ inputs.app_name ]]
-      image_tag: $[[ inputs.gem_runtime_tag ]]
-      automation_ref: $[[ inputs.automation_ref ]]
       verify_stage: verify
 
 stages:

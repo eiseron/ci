@@ -14,7 +14,7 @@ want() {
 
 want "db-backup-verify:" "verify job is missing"
 want "eiseron db backup verify" "verify job does not invoke the eiseron CLI"
-want 'automation.git -b "$[[ inputs.automation_ref ]]"' "verify must install the gem fresh from automation_ref (not rely on the baked image)"
+want '"$STACK_AUTOMATION_REPO" -b "$STACK_AUTOMATION_SHA"' "verify must install the gem fresh from automation_ref (not rely on the baked image)"
 
 grep -qE 'services:' "$template" &&
   fail "verify must not need a postgres service; it is read-only on R2"

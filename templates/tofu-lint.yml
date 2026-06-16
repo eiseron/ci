@@ -3,17 +3,17 @@ spec:
     chdir:
       default: "."
       description: "Directory tree scanned for .tf files."
-    image_tag:
-      default: "v0.1.16"
-      description: "public-image-bases iac tag (ships the eiseron gem)."
     stage:
       default: "lint"
       description: "Pipeline stage for the job (consumer must declare it)."
 ---
+include:
+  - local: /lock.yml
+
 tofu-lint:
   stage: $[[ inputs.stage ]]
   image:
-    name: registry.gitlab.com/eiseron/stack/public-image-bases/iac:$[[ inputs.image_tag ]]
+    name: $STACK_IAC_IMAGE
     entrypoint: [""]
   tags:
     - self-hosted
