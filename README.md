@@ -513,6 +513,12 @@ The ops repo supplies (production scope): `PROD_BACKUP_BUCKET`,
 `CLOUDFLARE_ACCOUNT_ID`, `PROD_BACKUP_DRILL_KEY`, `AWS_ACCESS_KEY_ID`,
 `AWS_SECRET_ACCESS_KEY` (R2 read).
 
+The job runs only when the firing pipeline carries `BACKUP_JOB=drill` — set
+the variable on the drill schedule (`gitlab_pipeline_schedule_variable`) or
+type it into a manual web run. Without it the drill is silent, which is what
+lets the daily `db-backup-verify` schedule live next to the weekly drill
+schedule without each one triggering the other.
+
 ## templates/prod-backup.yml
 
 Manual "backup now" job — an on-demand snapshot outside the daily cron, for
@@ -622,3 +628,8 @@ Optional: `PROD_BACKUP_STALE_HOURS` (override the 30 default).
 
 Inputs: `app_name`, `automation_ref` (carries `eiseron db backup verify`),
 `image_tag` (`gem-runtime`), `verify_stage` (default `verify`).
+
+The job runs only when the firing pipeline carries `BACKUP_JOB=verify` — set
+the variable on the verify schedule (`gitlab_pipeline_schedule_variable`) or
+type it into a manual web run. The discriminator keeps the verify schedule
+from also triggering the weekly drill, and vice versa.

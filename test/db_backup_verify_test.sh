@@ -25,8 +25,8 @@ grep -qE 'PGHOST|PGUSER|PGPASSWORD' "$template" &&
 want 'AWS_ACCESS_KEY_ID: "$PROD_DRILL_AWS_ACCESS_KEY_ID"' "verify must consume the read-only drill R2 creds, not the backup write creds"
 want 'AWS_SECRET_ACCESS_KEY: "$PROD_DRILL_AWS_SECRET_ACCESS_KEY"' "verify must consume the read-only drill R2 creds, not the backup write creds"
 
-want 'CI_PIPELINE_SOURCE == "schedule"' "verify must run on a schedule (the primary trigger that delivers the alert)"
-want 'CI_PIPELINE_SOURCE == "web"' "verify must also be runnable from a web pipeline for manual diagnostic"
+want '$CI_PIPELINE_SOURCE == "schedule" && $BACKUP_JOB == "verify"' "verify must be gated to a schedule that sets BACKUP_JOB=verify (otherwise the weekly drill schedule would trigger the verify too)"
+want '$CI_PIPELINE_SOURCE == "web" && $BACKUP_JOB == "verify"' "verify must be triggerable from a web pipeline that sets BACKUP_JOB=verify"
 want "name: production" "verify must run under the production environment to receive the bucket vars"
 
 echo "PASS: db-backup-verify template wiring (read-only on R2, schedule-driven, gem-installed-fresh)"

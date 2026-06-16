@@ -29,8 +29,8 @@ want 'exit 1' "bounded readiness wait must fail the job when postgres never come
 want 'AWS_ACCESS_KEY_ID: "$PROD_DRILL_AWS_ACCESS_KEY_ID"' "R2 read creds must map from PROD_DRILL_AWS_* (AWS_* collides with the ops state backend)"
 want 'AWS_SECRET_ACCESS_KEY: "$PROD_DRILL_AWS_SECRET_ACCESS_KEY"' "R2 read secret must map from PROD_DRILL_AWS_*"
 
-want "if: '\$CI_PIPELINE_SOURCE == \"schedule\"'" "drill must run on the schedule (the alert)"
-want "if: '\$CI_PIPELINE_SOURCE == \"web\"'" "drill must be triggerable manually from the web"
+want "if: '\$CI_PIPELINE_SOURCE == \"schedule\" && \$BACKUP_JOB == \"drill\"'" "drill must be gated to a schedule that sets BACKUP_JOB=drill (otherwise the daily verify schedule would trigger the drill too)"
+want "if: '\$CI_PIPELINE_SOURCE == \"web\" && \$BACKUP_JOB == \"drill\"'" "drill must be triggerable from a web pipeline that sets BACKUP_JOB=drill"
 absent 'merge_request_event' "drill must not run on merge requests"
 absent 'CI_DEFAULT_BRANCH' "drill must not run on every default-branch push"
 
