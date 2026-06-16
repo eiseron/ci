@@ -84,6 +84,47 @@ Inputs:
 | `image_tag` | `v0.1.16` | `public-image-bases/iac` tag the job runs on |
 | `stage` | `validate` | pipeline stage for the job (the consumer must declare it) |
 
+## templates/lock-smoke.yml
+
+`lock-smoke` job — runs on **every MR** and on the default-branch push,
+proving the `STACK_AUTOMATION_SHA` produced by the lock actually installs.
+The prod-path templates (`prod-deploy`, `prod-backup`, `prod-restore`,
+`db-backup-verify`) install the gem with
+`gem specific_install <repo> -b "$STACK_AUTOMATION_SHA"` before running
+anything — but those jobs are gated to production/schedule/web pipelines,
+so an MR that bumps the stack/ci ref or the lock cannot exercise them.
+`lock-smoke` runs the same install on the locked `$STACK_GEM_RUNTIME_IMAGE`
+(every image goes through the manifest+lock; nothing hardcoded), and
+`gem uninstall`s the baked gem first so the install path is actually
+exercised — without the wipe, a stale baked binary would let the test
+pass silently. It is the cheap CI-level guard against the divergence
+class that broke `db restore` in handoff #72 — moved from one-shot manual
+validation into a permanent precondition. Pairs with `ci check`, which
+asserts the same locked SHA is what *every* baked image carries.
+
+The job is wired transitively: `ops.yml` includes `lock-smoke.yml`, so every
+consumer that includes `ops.yml`/`product-ops.yml`/`phoenix-ops.yml`/`org-ops.yml`
+gets it automatically, with no opt-in needed.
+
+```yaml
+# wired automatically when you include any of the facade templates
+include:
+  - project: eiseron/stack/ci
+    file: /templates/phoenix-ops.yml   # or product-ops / ops / org-ops
+    ref: vX.Y.Z
+    inputs: { ... }
+stages: [lint, ...]   # lock-smoke runs in lint
+```
+
+Inputs: `stage` (default `lint`; the consumer must declare it).
+
+Fails on:
+- `STACK_AUTOMATION_REPO`/`STACK_AUTOMATION_SHA` missing (consumer is on a
+  pre-lock ci ref);
+- `gem specific_install -b "$STACK_AUTOMATION_SHA"` itself fails (the bug
+  this template catches);
+- `eiseron` binary not on `PATH` after install, or it does not start.
+
 ## templates/tofu-lint.yml
 
 `tofu-lint` job — runs `eiseron tofu lint` (from the `automation` gem,

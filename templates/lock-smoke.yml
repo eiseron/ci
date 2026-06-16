@@ -1,0 +1,27 @@
+spec:
+  inputs:
+    stage:
+      default: "lint"
+      description: "Pipeline stage for the smoke job (the consumer must declare it)."
+---
+lock-smoke:
+  stage: $[[ inputs.stage ]]
+  image: $STACK_GEM_RUNTIME_IMAGE
+  needs: []
+  tags:
+    - self-hosted
+  cache: []
+  variables:
+    GIT_STRATEGY: none
+  script:
+    - test -n "$STACK_AUTOMATION_REPO" || { echo "lock did not provide STACK_AUTOMATION_REPO; rerun 'eiseron ci install' in stack/ci"; exit 1; }
+    - test -n "$STACK_AUTOMATION_SHA" || { echo "lock did not provide STACK_AUTOMATION_SHA; rerun 'eiseron ci install' in stack/ci"; exit 1; }
+    - test -n "$STACK_GEM_RUNTIME_IMAGE" || { echo "lock did not provide STACK_GEM_RUNTIME_IMAGE; the smoke runs on the locked gem-runtime image"; exit 1; }
+    - gem uninstall -aIx eiseron_automation 2>/dev/null || true
+    - gem specific_install "$STACK_AUTOMATION_REPO" -b "$STACK_AUTOMATION_SHA" --no-document
+    - command -v eiseron >/dev/null || { echo "eiseron binary not on PATH after specific_install"; exit 1; }
+    - eiseron 2>&1 | grep -q "Available:" || { echo "eiseron binary present but does not run"; exit 1; }
+    - echo "OK lock specific_install -b $STACK_AUTOMATION_SHA"
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH

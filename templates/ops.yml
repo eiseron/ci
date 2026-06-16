@@ -10,6 +10,9 @@ spec:
 
 include:
   - local: /lock.yml
+  - local: /templates/lock-smoke.yml
+    inputs:
+      stage: lint
   - local: /templates/tofu-lint.yml
     inputs:
       stage: lint
