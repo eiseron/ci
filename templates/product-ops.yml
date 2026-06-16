@@ -31,7 +31,7 @@ spec:
       default: "v0.1.21"
       description: "public-image-bases gem-runtime tag the restore drill runs on."
     automation_ref:
-      default: "v0.16.0"
+      default: "v0.17.0"
       description: "eiseron/stack/automation ref consumed by the prod templates (carries `eiseron prod *`)."
 ---
 
@@ -80,6 +80,12 @@ include:
       app_name: $[[ inputs.app_name ]]
       image_tag: $[[ inputs.gem_runtime_tag ]]
       drill_stage: drill
+  - local: /templates/db-backup-verify.yml
+    inputs:
+      app_name: $[[ inputs.app_name ]]
+      image_tag: $[[ inputs.gem_runtime_tag ]]
+      automation_ref: $[[ inputs.automation_ref ]]
+      verify_stage: verify
 
 stages:
   - lint
@@ -90,6 +96,7 @@ stages:
   - backup
   - restore
   - drill
+  - verify
   - drift
 
 workflow:

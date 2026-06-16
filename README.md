@@ -585,3 +585,40 @@ stages: [restore]
 Inputs: `app_service`, `automation_ref` (carries `eiseron prod restore`),
 `image_tag` (ops), `restore_stage` (default `restore`). Reuses the accessory's
 production-scope env; the drill key reaches the host only over stdin.
+
+## templates/db-backup-verify.yml
+
+Scheduled staleness alarm — daily auditor that catches the case the
+`db-restore-drill` cannot: backups *stopped happening*. The drill proves an
+existing backup restores; the verifier proves a *new* backup landed. It runs
+`eiseron db backup verify`, which lists the product prefix in R2, picks the
+newest `.sql.age` object, parses the ISO-8601 stamp from its key, and fails if
+the gap to `now` exceeds `PROD_BACKUP_STALE_HOURS` (default 30). Empty prefix
+or unparseable name also fail. Pipeline failure → GitLab notification to the
+assignees — the alert channel until proper observability lands.
+
+Designed **decoupled from the scheduler**: read-only on R2, never touches the
+database or the accessory, runs in CI on its own schedule. If the accessory
+crashes (backups stop), the verifier still alerts; if it ran inside the
+accessory, a broken backup would silence its own alarm. The gem is reinstalled
+fresh from `automation_ref` at job start (`gem specific_install`), so the
+verify command is never trapped behind a stale baked image.
+
+```yaml
+# in the product's OPS repo, on a daily schedule
+include:
+  - project: eiseron/stack/ci
+    file: /templates/db-backup-verify.yml
+    ref: vX.Y.Z
+    inputs:
+      app_name: example
+stages: [verify]
+```
+
+The ops repo supplies (production scope, R2 read): `PROD_BACKUP_BUCKET`,
+`CLOUDFLARE_ACCOUNT_ID`, `PROD_DRILL_AWS_ACCESS_KEY_ID`,
+`PROD_DRILL_AWS_SECRET_ACCESS_KEY` (mapped to `AWS_*` by the template).
+Optional: `PROD_BACKUP_STALE_HOURS` (override the 30 default).
+
+Inputs: `app_name`, `automation_ref` (carries `eiseron db backup verify`),
+`image_tag` (`gem-runtime`), `verify_stage` (default `verify`).

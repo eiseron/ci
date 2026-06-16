@@ -1,0 +1,39 @@
+spec:
+  inputs:
+    image_tag:
+      default: "v0.1.21"
+      description: "public-image-bases/gem-runtime tag (pre-baked aws-sdk-s3); the gem is reinstalled fresh from automation_ref at job start."
+    automation_ref:
+      default: "v0.17.0"
+      description: "eiseron/stack/automation tag installed at job start so the verify command always tracks the current gem, not whatever the image baked."
+    app_name:
+      default: "app"
+      description: "Product slug; selects the backup object prefix (PROD_BACKUP_NAME)."
+    verify_stage:
+      default: "verify"
+      description: "Pipeline stage for the verify job (the consumer must declare it)."
+---
+db-backup-verify:
+  stage: $[[ inputs.verify_stage ]]
+  timeout: 5 minutes
+  image:
+    name: registry.gitlab.com/eiseron/stack/public-image-bases/gem-runtime:$[[ inputs.image_tag ]]
+  tags:
+    - self-hosted
+  environment:
+    name: production
+  cache: []
+  variables:
+    GIT_STRATEGY: none
+    PROD_BACKUP_NAME: "$[[ inputs.app_name ]]"
+    AWS_ACCESS_KEY_ID: "$PROD_DRILL_AWS_ACCESS_KEY_ID"
+    AWS_SECRET_ACCESS_KEY: "$PROD_DRILL_AWS_SECRET_ACCESS_KEY"
+  before_script:
+    - gem install specific_install --no-document
+    - gem specific_install https://gitlab.com/eiseron/stack/automation.git -b "$[[ inputs.automation_ref ]]"
+    - export PATH="$(ruby -e 'print Gem.user_dir')/bin:$PATH"
+  script:
+    - eiseron db backup verify
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
+    - if: '$CI_PIPELINE_SOURCE == "web"'
