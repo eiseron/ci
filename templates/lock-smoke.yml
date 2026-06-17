@@ -21,7 +21,7 @@ lock-smoke:
     - gem uninstall -aIx eiseron_automation 2>/dev/null || true
     - gem specific_install "$STACK_AUTOMATION_REPO" -b "$STACK_AUTOMATION_SHA"
     - command -v eiseron >/dev/null || { echo "eiseron binary not on PATH after specific_install"; exit 1; }
-    - eiseron 2>&1 | grep -q "Available:" || { echo "eiseron binary present but does not run"; exit 1; }
+    - out=$(eiseron 2>&1 || true); printf '%s\n' "$out" | grep -q "Available:" || { echo "eiseron binary present but does not run"; exit 1; }
     - echo "OK lock specific_install -b $STACK_AUTOMATION_SHA"
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
