@@ -1,0 +1,21 @@
+spec:
+  inputs: {}
+---
+.notify_telegram_on_failure:
+  after_script:
+    - |
+      if [ "$CI_JOB_STATUS" != "failed" ]; then exit 0; fi
+      if [ -z "$TELEGRAM_BOT_TOKEN" ] || [ -z "$TELEGRAM_CHAT_ID" ]; then
+        echo "Telegram secrets not in scope for this job (likely MR pipeline or production not provisioned) — skipping alert"
+        exit 0
+      fi
+      text="FAIL: ${CI_PROJECT_PATH} · job ${CI_JOB_NAME}
+      Pipeline: ${CI_PIPELINE_URL}
+      Job: ${CI_JOB_URL}
+      Ref: ${CI_COMMIT_REF_NAME} @ ${CI_COMMIT_SHORT_SHA}"
+      curl -sS --max-time 10 --retry 2 --retry-delay 1 \
+        -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+        --data-urlencode "chat_id=${TELEGRAM_CHAT_ID}" \
+        --data-urlencode "text=${text}" \
+        --data-urlencode "disable_web_page_preview=true" \
+        >/dev/null || echo "Telegram delivery failed; the original job error stands"

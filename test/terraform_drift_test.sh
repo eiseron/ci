@@ -20,4 +20,7 @@ want '$CI_COMMIT_BRANCH == "production" && $CI_PIPELINE_SOURCE != "trigger"' "dr
 want 'SOPS_AGE_KEY="$AGE_KEY"' "job does not decrypt the SOPS env file"
 want 'action: prepare' "environment must use prepare to avoid fake deployment records"
 
-echo "PASS: terraform-drift wiring"
+want "extends: .notify_telegram_on_failure" "drift must extend the Telegram on-failure snippet so a missed apply alerts beyond the assignee email"
+want "/templates/notify-telegram.yml" "drift must include the notify-telegram template that defines the extends target"
+
+echo "PASS: terraform-drift wiring (Telegram-on-failure)"

@@ -15,8 +15,10 @@ spec:
 ---
 include:
   - local: /lock.yml
+  - local: /templates/notify-telegram.yml
 
 terraform-drift:
+  extends: .notify_telegram_on_failure
   stage: $[[ inputs.stage ]]
   image:
     name: $STACK_IAC_IMAGE

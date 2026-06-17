@@ -29,4 +29,7 @@ want '$CI_PIPELINE_SOURCE == "schedule" && $BACKUP_JOB == "verify"' "verify must
 want '$CI_PIPELINE_SOURCE == "web" && $BACKUP_JOB == "verify"' "verify must be triggerable from a web pipeline that sets BACKUP_JOB=verify"
 want "name: production" "verify must run under the production environment to receive the bucket vars"
 
-echo "PASS: db-backup-verify template wiring (read-only on R2, schedule-driven, gem-installed-fresh)"
+want "extends: .notify_telegram_on_failure" "verify must extend the Telegram on-failure snippet so failures alert beyond the assignee email"
+want "/templates/notify-telegram.yml" "verify must include the notify-telegram template that defines the extends target"
+
+echo "PASS: db-backup-verify template wiring (read-only on R2, schedule-driven, gem-installed-fresh, Telegram-on-failure)"

@@ -9,8 +9,10 @@ spec:
 ---
 include:
   - local: /lock.yml
+  - local: /templates/notify-telegram.yml
 
 db-backup-verify:
+  extends: .notify_telegram_on_failure
   stage: $[[ inputs.verify_stage ]]
   timeout: 5 minutes
   image:

@@ -674,3 +674,40 @@ The job runs only when the firing pipeline carries `BACKUP_JOB=verify` — set
 the variable on the verify schedule (`gitlab_pipeline_schedule_variable`) or
 type it into a manual web run. The discriminator keeps the verify schedule
 from also triggering the weekly drill, and vice versa.
+
+## templates/notify-telegram.yml
+
+Reusable `after_script` snippet that routes a job failure to a Telegram bot,
+on top of the GitLab assignee email that already exists. Defines the hidden
+job `.notify_telegram_on_failure`; consumers `extends:` it. Runs in
+`after_script` (not `script`) so a Telegram outage cannot mask the real job
+error. Gates on `CI_JOB_STATUS == failed` (after_script always runs); on
+absent `TELEGRAM_BOT_TOKEN`/`TELEGRAM_CHAT_ID` (MR pipelines lack protected
+vars); posts to `api.telegram.org` via **raw `curl`** with `--data-urlencode`.
+
+`curl` instead of the gem on purpose: an alert that depends on the locked
+`STACK_AUTOMATION_SHA` would force every alert-adding feature to also push a
+new baked image (the lock-check rejects any drift). Keeping the after_script
+independent of automation versioning means the template ships once and
+survives every `eiseron ci update`.
+
+```yaml
+# in another template
+include:
+  - local: /templates/notify-telegram.yml
+
+my-job:
+  extends: .notify_telegram_on_failure
+  script:
+    - …
+```
+
+No inputs; no variables. The consuming ops repo must provide
+`TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` as protected production CI
+variables (gated `gitlab_project_variable` on sops in the repo, like
+`PROD_BACKUP_DRILL_KEY`).
+
+Extended by `db-backup-verify.yml` (stale backup) and `terraform-drift.yml`
+(missed apply). **Not** extended by `ancestry-check.yml`: that template runs
+on every merge request and would flood the channel with PR-time errors that
+already show up in the review UI.
