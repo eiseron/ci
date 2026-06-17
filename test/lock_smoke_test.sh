@@ -20,6 +20,7 @@ want "gem uninstall -aIx eiseron_automation" "smoke must wipe the baked gem befo
 want "gem specific_install" "smoke must exercise the specific_install pattern templates use"
 want "command -v eiseron" "smoke must verify the binary lands on PATH after install"
 want "needs: []" "smoke job is DAG-independent so it does not block on plan/apply"
+want "before_script: []" "smoke must override the default before_script from ops.yml (sops/jq/tofu) — gem-runtime image has none of those, so the smoke would fail on inherited setup before reaching the install line"
 
 grep -qE 'PROD_|PG|AWS_|TF_VAR' "$template" &&
   fail "smoke must not read prod secrets; it must run in any MR pipeline regardless of branch protection"

@@ -13,6 +13,7 @@ lock-smoke:
   cache: []
   variables:
     GIT_STRATEGY: none
+  before_script: []
   script:
     - test -n "$STACK_AUTOMATION_REPO" || { echo "lock did not provide STACK_AUTOMATION_REPO; rerun 'eiseron ci install' in stack/ci"; exit 1; }
     - test -n "$STACK_AUTOMATION_SHA" || { echo "lock did not provide STACK_AUTOMATION_SHA; rerun 'eiseron ci install' in stack/ci"; exit 1; }
