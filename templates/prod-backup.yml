@@ -43,7 +43,7 @@ prod-backup:
     PROD_TENANT_SLUG: "$[[ inputs.tenant_slug ]]"
     DB_URL_SCHEME: "$[[ inputs.db_url_scheme ]]"
   before_script:
-    - gem install specific_install --no-document
+    - gem install specific_install -v "$STACK_SPECIFIC_INSTALL_VERSION" --no-document
     - gem specific_install "$STACK_AUTOMATION_REPO" -b "$STACK_AUTOMATION_SHA"
     - export PATH="$(ruby -e 'print Gem.user_dir')/bin:$PATH"
     - git clone "$STACK_PROVISIONING_REPO" /tmp/provisioning && git -C /tmp/provisioning checkout "$STACK_PROVISIONING_SHA"

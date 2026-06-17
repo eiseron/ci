@@ -23,7 +23,7 @@ prod-tenant:
     GIT_STRATEGY: none
     PROD_TENANT_SLUG: "$[[ inputs.tenant_slug ]]"
   before_script:
-    - gem install specific_install --no-document
+    - gem install specific_install -v "$STACK_SPECIFIC_INSTALL_VERSION" --no-document
     - gem specific_install "$STACK_AUTOMATION_REPO" -b "$STACK_AUTOMATION_SHA"
     - export PATH="$(ruby -e 'print Gem.user_dir')/bin:$PATH"
     - eval "$(ssh-agent -s)"

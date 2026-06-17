@@ -65,7 +65,7 @@ include:
   variables:
     GIT_STRATEGY: none
   before_script:
-    - gem install specific_install --no-document
+    - gem install specific_install -v "$STACK_SPECIFIC_INSTALL_VERSION" --no-document
     - gem specific_install "$STACK_AUTOMATION_REPO" -b "$STACK_AUTOMATION_SHA"
 
 prod-build:
@@ -130,9 +130,9 @@ prod-assets-upload:
     PROD_ASSETS_BUCKET: $[[ inputs.assets_bucket ]]
     PROD_SOURCEMAPS_BUCKET: $[[ inputs.sourcemaps_bucket ]]
   before_script:
-    - gem install specific_install --no-document
+    - gem install specific_install -v "$STACK_SPECIFIC_INSTALL_VERSION" --no-document
     - gem specific_install "$STACK_AUTOMATION_REPO" -b "$STACK_AUTOMATION_SHA"
-    - gem install aws-sdk-s3 -v "~> 1.215" --no-document
+    - gem install aws-sdk-s3 -v "$STACK_AWS_SDK_S3_VERSION" --no-document
   script:
     - eiseron prod upload
 

@@ -1,8 +1,5 @@
 spec:
   inputs:
-    pg_image:
-      default: "postgres:18"
-      description: "Throwaway Postgres image the drill restores into (match the production server major)."
     app_name:
       default: "app"
       description: "Product slug; selects the backup object prefix (PROD_BACKUP_NAME)."
@@ -24,7 +21,7 @@ db-restore-drill:
     name: production
   cache: []
   services:
-    - name: $[[ inputs.pg_image ]]
+    - name: $STACK_POSTGRES_IMAGE
       alias: postgres
   variables:
     GIT_STRATEGY: none

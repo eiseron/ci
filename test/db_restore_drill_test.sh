@@ -19,7 +19,10 @@ absent() {
 want 'db-restore-drill:' "drill job is missing"
 want 'eiseron db restore-drill' "job must run the gem drill command"
 want '$STACK_GEM_RUNTIME_IMAGE' "image must be the pinned gem-runtime tag"
-want 'default: "postgres:18"' "pg_image must default to a throwaway postgres matching the prod major"
+want '- name: $STACK_POSTGRES_IMAGE' "drill must run against the lock-pinned postgres (matching prod major), not a per-consumer override"
+
+grep -qE '^[[:space:]]+pg_image:' "$template" &&
+  fail "pg_image input was removed — postgres now comes from the lock (manifest.yml), so consumers cannot diverge from prod major by accident"
 want 'name: production' "environment must be production so the drill key and R2 read creds resolve"
 want 'GIT_STRATEGY: none' "drill needs no source checkout"
 want 'timeout: 15 minutes' "job must cap its runtime so a hung service does not hold a runner"

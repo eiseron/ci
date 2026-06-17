@@ -37,8 +37,8 @@ lock-check:
   before_script:
     - apk add --no-cache git curl
     - curl -sL https://github.com/google/go-containerregistry/releases/download/v0.20.2/go-containerregistry_Linux_x86_64.tar.gz | tar -xz -C /usr/local/bin crane
-    - gem install specific_install -v 0.3.8 --no-document
-    - gem specific_install https://gitlab.com/eiseron/stack/automation.git -b v0.18.0
+    - gem install "$STACK_SPECIFIC_INSTALL_GEM" -v "$STACK_SPECIFIC_INSTALL_VERSION" --no-document
+    - gem specific_install "$STACK_AUTOMATION_REPO" -b "$STACK_AUTOMATION_SHA"
   script:
     - eiseron ci check
 

@@ -1,5 +1,7 @@
 gems:
-  gitlab.com/eiseron/stack/automation: "~> 0.17"
+  gitlab.com/eiseron/stack/automation: "~> 0.20"
+  specific_install: "*"
+  aws-sdk-s3: "~> 1.215"
 repos:
   gitlab.com/eiseron/stack/provisioning: "~> 0.50"
 images:
@@ -10,3 +12,6 @@ images:
   registry.gitlab.com/eiseron/stack/public-image-bases/alpine-deploy: "~> 0.1"
   registry.gitlab.com/eiseron/stack/public-image-bases/python-ansible: "~> 0.1"
   registry.gitlab.com/eiseron/stack/public-image-bases/go-tools: "~> 0.1"
+  ruby: "3.3-alpine"
+  alpine: "3.23"
+  postgres: "18-alpine"

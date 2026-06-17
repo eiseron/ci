@@ -51,7 +51,7 @@ include:
     - install -d -m 700 "$CI_PROJECT_DIR"
     - cp "$PREVIEW_ANSIBLE_SSH_PRIVATE_KEY" "$CI_PROJECT_DIR/preview_key"
     - chmod 600 "$CI_PROJECT_DIR/preview_key"
-    - gem install specific_install --no-document
+    - gem install specific_install -v "$STACK_SPECIFIC_INSTALL_VERSION" --no-document
     - gem specific_install "$STACK_AUTOMATION_REPO" -b "$STACK_AUTOMATION_SHA"
     - ansible-galaxy collection install "git+$STACK_PROVISIONING_REPO,$STACK_PROVISIONING_SHA" --force
 

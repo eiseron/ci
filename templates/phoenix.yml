@@ -45,7 +45,7 @@ test:
   tags:
     - self-hosted
   services:
-    - name: postgres:16-alpine
+    - name: $STACK_POSTGRES_IMAGE
       alias: postgres
   variables:
     MIX_ENV: test
