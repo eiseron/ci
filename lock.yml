@@ -32,3 +32,5 @@ variables:
   STACK_ALPINE_TAG: '3.23'
   STACK_POSTGRES_IMAGE: docker.io/library/postgres@sha256:d3e64d36360a9f40c30fbbc5dd2dde799fe35f8537500c8b067551a6497f50f4
   STACK_POSTGRES_TAG: 18-alpine
+  STACK_NODE_IMAGE: docker.io/library/node@sha256:e58326d0d441090181ac150dc2078d3e2cf6a0d42e809aebba3ef5880935ffdd
+  STACK_NODE_TAG: 22-alpine

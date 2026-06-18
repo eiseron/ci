@@ -1,0 +1,26 @@
+spec:
+  inputs:
+    workers_dir:
+      default: workers
+      description: "Directory containing the *.js worker scripts to syntax-check."
+---
+include:
+  - local: /lock.yml
+  - local: /templates/release.yml
+
+stages:
+  - lint
+  - release
+
+worker-lint:
+  stage: lint
+  image: $STACK_NODE_IMAGE
+  tags:
+    - self-hosted
+  variables:
+    GIT_STRATEGY: fetch
+  script:
+    - find "$[[ inputs.workers_dir ]]" -type f -name "*.js" -exec node --check {} +
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH

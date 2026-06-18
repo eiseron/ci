@@ -711,3 +711,37 @@ Extended by `db-backup-verify.yml` (stale backup) and `terraform-drift.yml`
 (missed apply). **Not** extended by `ancestry-check.yml`: that template runs
 on every merge request and would flood the channel with PR-time errors that
 already show up in the review UI.
+
+## templates/workers.yml
+
+CI for a stack repo that ships pure-JS Cloudflare Worker scripts (e.g.
+`eiseron/stack/workers`). One `lint` job (`node --check` over every `*.js`
+in the configured directory) and the standard `release.yml` chain so a
+VERSION bump on the default branch publishes `vX.Y.Z`.
+
+Inputs:
+
+- `workers_dir` (default `workers`): the directory holding the worker
+  source files the lint job scans.
+
+The Node image is locked centrally via `STACK_NODE_IMAGE` (`manifest.yml`
++ `lock.yml`); consumers pick it up automatically. Why so spartan: workers in this stack are deliberately small (one file per
+worker, no build step, no framework, no TypeScript). The CI matches that
+shape — anything beyond syntax-checking would push the source toward a
+heavier code style than the repo wants.
+
+```yaml
+# in eiseron/stack/workers/.gitlab-ci.yml
+include:
+  - project: eiseron/stack/ci
+    file: /templates/workers.yml
+    ref: v0.4.0
+
+stages:
+  - lint
+  - release
+```
+
+Consumers of an individual worker script (the `cloudflare_workers_script`
+resource in `stack/provisioning`) pin a `ref` of `stack/workers` themselves;
+the lint template does not gate that.
