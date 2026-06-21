@@ -29,7 +29,9 @@ grep -qE '^[[:space:]]+image:[[:space:]]+(ruby|alpine|debian|ubuntu|node|python)
   fail "smoke must not hardcode an upstream image — every image goes through the manifest+lock; use \$STACK_*_IMAGE"
 
 want 'CI_PIPELINE_SOURCE == "merge_request_event"' "smoke must fire on every MR — that is the whole point of a preflight"
-want 'CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH' "smoke must also fire on the default branch so a bad lock pushed straight to main is caught next pipeline"
+
+grep -qF 'CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH' "$template" &&
+  fail "smoke should NOT run on default-branch push — it already passed on the MR that merged into main"
 
 grep -qE 'CI_COMMIT_BRANCH == "production"' "$template" &&
   fail "smoke should NOT run on production — production pipelines apply infra; a fresh-install smoke there wastes runner time"
@@ -37,4 +39,4 @@ grep -qE 'CI_COMMIT_BRANCH == "production"' "$template" &&
 want "STACK_AUTOMATION_REPO" "smoke must fail loudly if the lock did not provide STACK_AUTOMATION_REPO (means the consumer is on a pre-lock ci ref)"
 want "STACK_GEM_RUNTIME_IMAGE" "smoke must fail loudly if the lock did not provide STACK_GEM_RUNTIME_IMAGE"
 
-echo "PASS: lock-smoke template wiring (locked gem-runtime, wipe-then-install, MR + default branch, no prod secrets)"
+echo "PASS: lock-smoke template wiring (locked gem-runtime, wipe-then-install, MR only, no prod secrets)"
