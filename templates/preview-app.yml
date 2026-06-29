@@ -1,0 +1,160 @@
+spec:
+  inputs:
+    app_name:
+      description: "Product slug. Becomes the per-MR/main image basename and the traefik label namespace."
+    build_stage:
+      default: "build"
+      description: "Pipeline stage the build_image job runs in (the consumer must declare it)."
+    preview_stage:
+      default: "preview"
+      description: "Pipeline stage the deploy_preview / deploy_main / stop_preview jobs run in (the consumer must declare it)."
+    dockerfile_path:
+      default: ".docker/Dockerfile.preview"
+      description: "Path to the per-preview Dockerfile inside the app repository."
+    assets_command:
+      default: "mix assets.deploy"
+      description: "Command that builds and digests static assets before the image build step."
+    mix_env:
+      default: "staging"
+      description: "MIX_ENV the per-preview image is compiled with."
+    builder_image:
+      default: "registry.gitlab.com/eiseron/stack/public-image-bases/elixir-builder:latest"
+      description: "Image used for the build_image job. Bundles elixir-tools + kaniko/executor so a single container can compile and build/push."
+    main_environment_name:
+      default: "main"
+      description: "GitLab environment name the deploy_main job binds to. The matching URL becomes https://${main_environment_name}-${PREVIEW_DOMAIN_BASE}."
+    preview_auto_stop_in:
+      default: "7 days"
+      description: "Idle time after which GitLab auto-stops a preview environment. Stop is dispatched manually before this in practice."
+---
+include:
+  - local: /lock.yml
+
+.preview_trigger:
+  image:
+    name: $STACK_GEM_RUNTIME_IMAGE
+  needs: ["build_image"]
+  before_script: []
+
+build_image:
+  stage: $[[ inputs.build_stage ]]
+  timeout: 15 minutes
+  needs: []
+  allow_failure: true
+  rules:
+    - if: $PREVIEW_REGISTRY_PASSWORD == null || $PREVIEW_REGISTRY_PASSWORD == ""
+      when: never
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+      when: never
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+  image:
+    name: $[[ inputs.builder_image ]]
+  before_script: []
+  cache:
+    - key:
+        prefix: "${CI_COMMIT_REF_PROTECTED}-deps"
+        files:
+          - mix.lock
+      paths:
+        - deps/
+      fallback_keys:
+        - "${CI_COMMIT_REF_PROTECTED}-deps-default"
+    - key:
+        prefix: "${CI_COMMIT_REF_PROTECTED}-build-$[[ inputs.mix_env ]]"
+        files:
+          - mix.lock
+      paths:
+        - "_build/$[[ inputs.mix_env ]]/"
+      fallback_keys:
+        - "${CI_COMMIT_REF_PROTECTED}-build-$[[ inputs.mix_env ]]-default"
+  variables:
+    MIX_ENV: "$[[ inputs.mix_env ]]"
+  script:
+    - mix deps.get
+    - mix deps.compile
+    - mix compile
+    - $[[ inputs.assets_command ]]
+    - cp "$[[ inputs.dockerfile_path ]]" Dockerfile
+    - AUTH_B64=$(printf '%s:%s' "$PREVIEW_REGISTRY_USER" "$PREVIEW_REGISTRY_PASSWORD" | base64 | tr -d '\n')
+    - mkdir -p "$DOCKER_CONFIG"
+    - echo "{\"auths\":{\"$CI_REGISTRY\":{\"auth\":\"$AUTH_B64\"}}}" > "$DOCKER_CONFIG/config.json"
+    - executor
+        --context "$CI_PROJECT_DIR"
+        --dockerfile "$CI_PROJECT_DIR/Dockerfile"
+        --destination "$CI_REGISTRY_IMAGE/preview:$CI_COMMIT_REF_SLUG"
+        --destination "$CI_REGISTRY_IMAGE/preview:$CI_COMMIT_REF_SLUG-sha-$CI_COMMIT_SHORT_SHA"
+        --cache=true
+        --cache-repo="$CI_REGISTRY_IMAGE/kaniko-cache"
+        --cache-ttl=168h
+        --push-retry=3
+
+deploy_preview:
+  extends: .preview_trigger
+  stage: $[[ inputs.preview_stage ]]
+  timeout: 2 minutes
+  allow_failure: true
+  rules:
+    - if: $PREVIEW_DEPLOYER_PROJECT == null || $PREVIEW_DEPLOYER_PROJECT == ""
+      when: never
+    - if: $PREVIEW_DEPLOYER_TRIGGER_TOKEN == null || $PREVIEW_DEPLOYER_TRIGGER_TOKEN == ""
+      when: never
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  variables:
+    PREVIEW_TRIGGER_ACTION: deploy
+    PREVIEW_TRIGGER_KIND: mr
+    PREVIEW_TRIGGER_REF: $CI_COMMIT_REF_SLUG
+    PREVIEW_TRIGGER_MR_IID: $CI_MERGE_REQUEST_IID
+  script:
+    - eiseron preview trigger
+  environment:
+    name: preview/$CI_COMMIT_REF_SLUG
+    url: https://$CI_COMMIT_REF_SLUG-$PREVIEW_DOMAIN_BASE
+    on_stop: stop_preview
+    auto_stop_in: $[[ inputs.preview_auto_stop_in ]]
+
+deploy_main:
+  extends: .preview_trigger
+  stage: $[[ inputs.preview_stage ]]
+  timeout: 2 minutes
+  allow_failure: true
+  rules:
+    - if: $PREVIEW_DEPLOYER_PROJECT == null || $PREVIEW_DEPLOYER_PROJECT == ""
+      when: never
+    - if: $PREVIEW_DEPLOYER_TRIGGER_TOKEN == null || $PREVIEW_DEPLOYER_TRIGGER_TOKEN == ""
+      when: never
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+      when: never
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+  variables:
+    PREVIEW_TRIGGER_ACTION: deploy
+    PREVIEW_TRIGGER_KIND: main
+    PREVIEW_TRIGGER_REF: $[[ inputs.main_environment_name ]]
+  script:
+    - eiseron preview trigger
+  environment:
+    name: $[[ inputs.main_environment_name ]]
+    url: https://$[[ inputs.main_environment_name ]]-$PREVIEW_DOMAIN_BASE
+
+stop_preview:
+  extends: .preview_trigger
+  stage: $[[ inputs.preview_stage ]]
+  timeout: 2 minutes
+  needs: []
+  allow_failure: true
+  rules:
+    - if: $PREVIEW_DEPLOYER_PROJECT == null || $PREVIEW_DEPLOYER_PROJECT == ""
+      when: never
+    - if: $PREVIEW_DEPLOYER_TRIGGER_TOKEN == null || $PREVIEW_DEPLOYER_TRIGGER_TOKEN == ""
+      when: never
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      when: manual
+  variables:
+    PREVIEW_TRIGGER_ACTION: stop
+    PREVIEW_TRIGGER_KIND: mr
+    PREVIEW_TRIGGER_REF: $CI_COMMIT_REF_SLUG
+  script:
+    - eiseron preview trigger
+  environment:
+    name: preview/$CI_COMMIT_REF_SLUG
+    action: stop

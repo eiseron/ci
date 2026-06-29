@@ -7,7 +7,7 @@ spec:
       default: "secrets.enc.env"
       description: "SOPS-encrypted env file decrypted into the job environment."
     app_name:
-      description: "Product slug; used as the preview scope identifier."
+      description: "Product slug; the restore drill's backup object prefix (PROD_BACKUP_NAME)."
     app_service:
       description: "kamal service name (APP_SERVICE)."
     app_image:
@@ -24,13 +24,6 @@ spec:
     db_url_scheme:
       default: "ecto"
       description: "Scheme for the assembled DATABASE_URL (DB_URL_SCHEME); ecto for Phoenix."
-    preview_zone:
-      description: "DNS zone for previews; served at <app_name>-mr-<iid><preview_suffix>.<preview_zone>."
-    preview_suffix:
-      default: "-preview"
-      description: "Suffix appended to the preview ref hostname."
-    scan_project:
-      description: "URL-path of the product app project whose still-open MRs the sweeper keeps (e.g. eiseron/afinados/afinados)."
 ---
 
 include:
@@ -46,21 +39,7 @@ include:
       app_release_module: $[[ inputs.app_release_module ]]
       tenant_slug: $[[ inputs.tenant_slug ]]
       db_url_scheme: $[[ inputs.db_url_scheme ]]
-  - local: /templates/preview-deploy.yml
-    inputs:
-      app_name: $[[ inputs.app_name ]]
-      app_port: $[[ inputs.app_port ]]
-      preview_zone: $[[ inputs.preview_zone ]]
-      preview_suffix: $[[ inputs.preview_suffix ]]
-      db_url_scheme: $[[ inputs.db_url_scheme ]]
-      deploy_stage: preview
-      stop_stage: preview
-  - local: /templates/preview-sweep.yml
-    inputs:
-      app_name: $[[ inputs.app_name ]]
-      preview_suffix: $[[ inputs.preview_suffix ]]
-      scan_project: $[[ inputs.scan_project ]]
-      sweep_stage: sweep
+  - local: /templates/preview-dispatch.yml
 
 stages:
   - lint
@@ -73,7 +52,6 @@ stages:
   - drill
   - verify
   - preview
-  - sweep
   - drift
 
 workflow:
@@ -82,6 +60,6 @@ workflow:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
     - if: $CI_COMMIT_BRANCH == "production"
     - if: $CI_PIPELINE_SOURCE == "schedule"
-    - if: $PREVIEW_MR_IID
+    - if: $PREVIEW_ACTION
     - if: $PROD_ACTION == "deploy"
     - if: $CI_PIPELINE_SOURCE == "web" && $PROD_TAG

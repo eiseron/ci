@@ -1,8 +1,8 @@
 ---
 variables:
   STACK_AUTOMATION_REPO: https://gitlab.com/eiseron/stack/automation.git
-  STACK_AUTOMATION_REF: v0.21.0
-  STACK_AUTOMATION_SHA: 8388ef4da16389284dc1d01d803e78e001bf372d
+  STACK_AUTOMATION_REF: v0.23.0
+  STACK_AUTOMATION_SHA: f8fb8092695cbd12ec6c3149855e65d7f892e0a9
   STACK_SPECIFIC_INSTALL_GEM: specific_install
   STACK_SPECIFIC_INSTALL_VERSION: 0.3.8
   STACK_SPECIFIC_INSTALL_SHA: 655219e24ee1334429fa0ac7bc2c2a00a35e5b78d0492a87efb2400a4192d030
@@ -12,20 +12,20 @@ variables:
   STACK_PROVISIONING_REPO: https://gitlab.com/eiseron/stack/provisioning.git
   STACK_PROVISIONING_REF: v0.50.0
   STACK_PROVISIONING_SHA: b243f02694f34effae1b73a0e4145500a4154404
-  STACK_IAC_IMAGE: registry.gitlab.com/eiseron/stack/public-image-bases/iac@sha256:06f5587ba1cc23ea103dc92ebffbdd57f92c13c3710de2a81f2898b4d26353fc
-  STACK_IAC_TAG: v0.1.25
-  STACK_OPS_IMAGE: registry.gitlab.com/eiseron/stack/public-image-bases/ops@sha256:56c653e0f6367e57215c67a37f527fe70f16ba4c89973a878a21fc2f713c3bf1
-  STACK_OPS_TAG: v0.1.25
-  STACK_GEM_RUNTIME_IMAGE: registry.gitlab.com/eiseron/stack/public-image-bases/gem-runtime@sha256:a1aa3c4df2de07e20e8d509de133d853fd36294eb5916b7fba8c007952b6a9cc
-  STACK_GEM_RUNTIME_TAG: v0.1.25
-  STACK_ELIXIR_BUILDER_IMAGE: registry.gitlab.com/eiseron/stack/public-image-bases/elixir-builder@sha256:6fb0d7faf8f7c168dc0511b6744f9c704b51a2b0a4dbab523c57169a77d068dd
-  STACK_ELIXIR_BUILDER_TAG: v0.1.25
-  STACK_ALPINE_DEPLOY_IMAGE: registry.gitlab.com/eiseron/stack/public-image-bases/alpine-deploy@sha256:2f78b3b0b96da922ea7055ef9c5dd7bb403647805ce1b6133c8cf0be7b098340
-  STACK_ALPINE_DEPLOY_TAG: v0.1.25
-  STACK_PYTHON_ANSIBLE_IMAGE: registry.gitlab.com/eiseron/stack/public-image-bases/python-ansible@sha256:81292b2b9d50306f615c45b8bc855e52fbffdaaa3cb57ae9cf23945a7877c41e
-  STACK_PYTHON_ANSIBLE_TAG: v0.1.25
-  STACK_GO_TOOLS_IMAGE: registry.gitlab.com/eiseron/stack/public-image-bases/go-tools@sha256:f0c4f1f2ab604fb187db94b9a2852824410f4fd08b6789ccc00f5fd6a0e90920
-  STACK_GO_TOOLS_TAG: v0.1.25
+  STACK_IAC_IMAGE: registry.gitlab.com/eiseron/stack/public-image-bases/iac@sha256:56891ee6079f213ec65b8448395734ff1b362ef82046525cf188111de0d8cc05
+  STACK_IAC_TAG: v0.1.27
+  STACK_OPS_IMAGE: registry.gitlab.com/eiseron/stack/public-image-bases/ops@sha256:d936d7ee2b5ecb60e118517ca1ef36112df20cc3e1b68eb27e748c4d86aacaa2
+  STACK_OPS_TAG: v0.1.27
+  STACK_GEM_RUNTIME_IMAGE: registry.gitlab.com/eiseron/stack/public-image-bases/gem-runtime@sha256:065260b5a730ca3f3a0ff35ad78cb744321e2fbc0d39ca671735e8c391b269a9
+  STACK_GEM_RUNTIME_TAG: v0.1.27
+  STACK_ELIXIR_BUILDER_IMAGE: registry.gitlab.com/eiseron/stack/public-image-bases/elixir-builder@sha256:0553d985d51659167c7d50e3704a2828f340bdc97868a5bf4c7d55042a860e01
+  STACK_ELIXIR_BUILDER_TAG: v0.1.27
+  STACK_ALPINE_DEPLOY_IMAGE: registry.gitlab.com/eiseron/stack/public-image-bases/alpine-deploy@sha256:99d407609e369364b209b009d6b5ceec1ef6c8bd4041103a34688f4e931339df
+  STACK_ALPINE_DEPLOY_TAG: v0.1.27
+  STACK_PYTHON_ANSIBLE_IMAGE: registry.gitlab.com/eiseron/stack/public-image-bases/python-ansible@sha256:2ec455e85fcb13aa77e607c1867500b41ab14b54b19edd196aa783bda109c5ef
+  STACK_PYTHON_ANSIBLE_TAG: v0.1.27
+  STACK_GO_TOOLS_IMAGE: registry.gitlab.com/eiseron/stack/public-image-bases/go-tools@sha256:595453ff5417c8bc4938ba3624afb027a340c2eaafd431fcfbc1364d27d84a6c
+  STACK_GO_TOOLS_TAG: v0.1.27
   STACK_RUBY_IMAGE: docker.io/library/ruby@sha256:dc01e7d51e7ec9b9d1b27b80dab38d313b338fce50489e9b0f128b861712b7ef
   STACK_RUBY_TAG: 3.3-alpine
   STACK_ALPINE_IMAGE: docker.io/library/alpine@sha256:5b10f432ef3da1b8d4c7eb6c487f2f5a8f096bc91145e68878dd4a5019afde11

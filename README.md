@@ -223,103 +223,137 @@ Inputs:
 | `image_tag` | `v0.1.3` | `public-image-bases/python-ansible` tag the job runs on |
 | `stage` | `validate` | pipeline stage for the job (the consumer must declare it) |
 
-## templates/preview-deploy.yml
+## templates/preview-app.yml
 
-Thin `preview-deploy` and `preview-stop` jobs that install the
-`eiseron_automation` gem and run `eiseron preview deploy` / `eiseron preview
-stop`; the orchestration (assembling `DATABASE_URL`, invoking the
-`eiseron.provisioning.preview_app` playbook) lives in the tested gem.
+App-side preview template — builds the per-MR / main image and triggers
+the ops repo to deploy/stop it. Replaces the legacy `preview-build.yml`.
 
-The host credentials (`PREVIEW_HOST_IP`, `PREVIEW_ANSIBLE_SSH_PRIVATE_KEY`)
-must never reach the app repo, so this template is **included by the
-product's ops repo**, not the app repo. The app repo's MR pipeline builds
-and pushes its image (registry creds only), then **triggers** the ops repo
-passing `PREVIEW_MR_IID`, `PREVIEW_ACTION` (`deploy`/`stop`), and
-`PREVIEW_APP_IMAGE`. The triggered ops pipeline runs on a protected ref, so
-the protected host creds are in scope. The app is served at
-`<app_name>-mr-<iid><preview_suffix>.<preview_zone>`; jobs are serialized
-per MR via `resource_group`. Teardown of merged/closed MRs is the ops
-repo's responsibility (the scheduled `preview-sweep`).
+Four jobs:
+
+- `build_image` — kaniko build of `dockerfile_path`, pushes
+  `$CI_REGISTRY_IMAGE/preview:<slug>` and `<slug>-sha-<short>`. Auth via
+  the `<app>_preview_registry` deploy token (`PREVIEW_REGISTRY_USER` /
+  `PREVIEW_REGISTRY_PASSWORD`, provisioned by the consumer's terraform).
+- `deploy_preview` — MR-only. `environment: preview/<slug>`, URL
+  `https://<slug>-$PREVIEW_DOMAIN_BASE`, with `on_stop: stop_preview` and
+  `auto_stop_in`. Calls `eiseron preview trigger` to fan out to the ops
+  pipeline (`PREVIEW_KIND=mr`).
+- `deploy_main` — default-branch only. `environment:
+  <main_environment_name>`, URL
+  `https://<main_environment_name>-$PREVIEW_DOMAIN_BASE`. Same trigger
+  path with `PREVIEW_KIND=main`.
+- `stop_preview` — MR-only, manual. `environment.action: stop`. Triggers
+  the ops pipeline with `PREVIEW_ACTION=stop`.
+
+Trigger jobs run on `$STACK_GEM_RUNTIME_IMAGE` (eiseron CLI baked at
+`$STACK_AUTOMATION_SHA`); no in-job gem install. The POST to the
+deployer's trigger token bypasses ref-protection on the ops main branch,
+which is required because GitLab bridges fail with
+`insufficient_bridge_permissions` against "no-one"-protected refs.
+
+```yaml
+# in the product's APP repo
+include:
+  - project: eiseron/stack/ci
+    file: /templates/preview-app.yml
+    ref: vX.Y.Z
+    inputs:
+      app_name: example
+      mix_env: preview
+
+stages:
+  - build
+  - preview
+```
+
+Inputs (all but `app_name` have sensible defaults):
+
+| input | default | purpose |
+|-------|---------|---------|
+| `app_name` | _(required)_ | product slug; per-MR/main image basename and traefik label namespace |
+| `build_stage` | `build` | pipeline stage for `build_image` |
+| `preview_stage` | `preview` | pipeline stage for the three trigger jobs |
+| `dockerfile_path` | `.docker/Dockerfile.preview` | dockerfile baked by kaniko |
+| `assets_command` | `mix assets.deploy` | asset build before image build |
+| `mix_env` | `staging` | MIX_ENV the image compiles with |
+| `builder_image` | `…/elixir-builder:latest` | elixir-tools + kaniko, one job for compile + push |
+| `main_environment_name` | `main` | environment name `deploy_main` binds to; same value lands in `<…>-$PREVIEW_DOMAIN_BASE` URL |
+| `preview_auto_stop_in` | `7 days` | GitLab auto-stop idle window (stop is dispatched manually before this in practice) |
+
+CI vars expected (all provisioned by `stack/provisioning`'s
+`module.product` once the consumer wires `preview_host_ip`):
+`PREVIEW_DOMAIN_BASE`, `PREVIEW_REGISTRY_USER` /
+`PREVIEW_REGISTRY_PASSWORD`, `PREVIEW_DEPLOYER_PROJECT` /
+`PREVIEW_DEPLOYER_TRIGGER_TOKEN`. The bootstrap-guard rules skip jobs
+silently while these are still empty.
+
+## templates/preview-dispatch.yml
+
+Ops-side preview template — single `preview` job that runs
+`eiseron preview dispatch`, which routes on `PREVIEW_ACTION` to the
+`Preview::Deploy` / `Preview::Stop` / `Preview::Sweep` Ruby classes in
+`stack/automation`. Replaces the legacy `preview-deploy.yml` +
+`preview-sweep.yml` pair and the intermediate bash deployer scripts.
+
+The actions:
+
+- `deploy` — full per-MR / per-main deploy (docker auth on host, image
+  pull, stop previous, ensure shared roles, recreate per-MR roles + DB,
+  one-shot migrate as admin role, render compose template + bring up,
+  CF-Access-protected `/healthz` healthcheck, registry tag release).
+- `stop` — force teardown of one MR ref (compose down -v --rmi all,
+  drop DB + roles, delete registry tag).
+- `sweep` — reconciler (`docker compose ls --filter name=mr-`, read MR
+  state per project, tear down anything not `opened`). The `mr-`
+  filter is the structural guarantee that the `main` compose project
+  is immune to sweep mistakes.
+
+`stop` and `sweep` are distinct on purpose: sweep is the reconciler
+(skips MRs still open), stop is the imperative per-ref teardown (runs
+regardless). Conflating them prevents `on_stop` from working while a
+review MR is still open.
+
+Scheduled pipelines without an explicit `PREVIEW_ACTION` (and without
+`DRIFT_CHECK=1`) default to `sweep`. `environment: production` is fixed
+— it scopes the production CI vars (`SHARED_PG_USER`, `VPS_USER`,
+`PREVIEW_HOST_IP`, `ANSIBLE_SSH_PRIVATE_KEY`, `GITLAB_API_TOKEN`,
+`PREVIEW_*`, `EISERON_PREVIEW_*`) to the dispatcher job.
+
+Job runs on `$STACK_GEM_RUNTIME_IMAGE`, which ships the eiseron gem
+pinned to `$STACK_AUTOMATION_SHA` plus the tools the gem shells out
+to (ssh, docker CLI, curl, postgres-client). No `before_script`
+required.
 
 ```yaml
 # in the product's OPS repo
 include:
   - project: eiseron/stack/ci
-    file: /templates/preview-deploy.yml
-    ref: v0.1.7
-    inputs:
-      app_name: example
-      preview_zone: example.com
-      preview_suffix: "-preview"
-      db_url_scheme: ecto
+    file: /templates/preview-dispatch.yml
+    ref: vX.Y.Z
 
 stages:
-  - deploy
+  - preview
 ```
 
-Inputs:
+Inputs (both have defaults):
 
 | input | default | purpose |
 |-------|---------|---------|
-| `preview_zone` | _(required)_ | DNS zone; app served at `<app_name>-mr-<iid><preview_suffix>.<preview_zone>`, must be covered by the host wildcard cert |
-| `app_name` | `app` | product slug; deploy named `<app_name>-mr-<iid><preview_suffix>` |
-| `preview_suffix` | _(empty)_ | suffix before the zone, e.g. `-preview` to serve `<slug>-preview.<zone>` |
-| `app_port` | `4000` | container port the app listens on |
-| `db_host` / `db_port` | `shared-pg` / `5432` | shared Postgres address on the host docker network |
-| `db_url_scheme` | `postgresql` | scheme for the assembled `DATABASE_URL` (e.g. `ecto`) |
-| `automation_ref` | `v0.2.0` | `eiseron/stack/automation` tag (the `eiseron` CLI) |
-| `provisioning_ref` | `v0.8.0` | `eiseron.provisioning` collection tag |
-| `image_tag` | `v0.1.6` | `public-image-bases/python-ansible` tag (ruby + ansible) |
-| `deploy_stage` / `stop_stage` | `deploy` | pipeline stages (the consumer must declare them) |
+| `preview_stage` | `preview` | pipeline stage for the dispatcher |
+| `preview_timeout` | `5 minutes` | max wall-clock per dispatch invocation |
 
-The ops repo supplies (Terraform-managed in `eiseron-ops`, protected):
-`PREVIEW_HOST_IP`, `PREVIEW_ANSIBLE_SSH_PRIVATE_KEY`, `PREVIEW_TENANT_NAME`,
-`PREVIEW_TENANT_PASSWORD`, and `PREVIEW_APP_EXTRA_ENV`. The trigger supplies
-`PREVIEW_MR_IID`, `PREVIEW_ACTION`, and `PREVIEW_APP_IMAGE`.
+The consumer ops repo supplies the compose template (path via
+`EISERON_PREVIEW_COMPOSE_TEMPLATE`) and the production-scoped CI vars
+the gem reads — `EISERON_PREVIEW_APP_NAME`, `PREVIEW_PROJECT_PATH`,
+`VPS_USER`, `PREVIEW_HOST_IP`, `ANSIBLE_SSH_PRIVATE_KEY` (file-type),
+`SHARED_PG_USER`, `PREVIEW_IMAGE_PULL_USER` / `_TOKEN`,
+`PREVIEW_SECRET_KEY_BASE`, `PREVIEW_HEALTHCHECK_TOKEN_ID` / `_SECRET`,
+`GITLAB_API_TOKEN`. See `stack/automation`'s README for the full
+contract.
 
-## templates/preview-sweep.yml
-
-Thin `preview-sweep` job — the teardown safety net for previews whose merge
-requests are no longer open. It installs the `eiseron_automation` gem and
-runs `eiseron preview sweep`, which enumerates deployed previews (`docker
-ps`), lists the `scan_project`'s still-open MRs (GitLab API), and tears down
-every preview whose MR is not open (compose down, drop database, remove
-directory) via the `eiseron.provisioning.preview_app` playbook. Reconciling
-real state beats firing on close events, which can be missed. Runs in the
-ops repo on a schedule (protected scope, so the host creds are available).
-
-```yaml
-# in the product's OPS repo, on a schedule
-include:
-  - project: eiseron/stack/ci
-    file: /templates/preview-sweep.yml
-    ref: v0.1.7
-    inputs:
-      app_name: example
-      preview_suffix: "-preview"
-      scan_project: group/example/example
-
-stages:
-  - sweep
-```
-
-Inputs:
-
-| input | default | purpose |
-|-------|---------|---------|
-| `scan_project` | _(required)_ | URL-path of the product project whose still-open MRs are kept |
-| `app_name` | `app` | product slug; matches deployed previews `<app_name>-mr-<iid><preview_suffix>` |
-| `preview_suffix` | _(empty)_ | must match the deploy template's suffix |
-| `automation_ref` | `v0.2.0` | `eiseron/stack/automation` tag (the `eiseron` CLI) |
-| `provisioning_ref` | `v0.8.0` | `eiseron.provisioning` collection tag |
-| `image_tag` | `v0.1.6` | `public-image-bases/python-ansible` tag (ruby + ansible) |
-| `sweep_stage` | `sweep` | pipeline stage (the consumer must declare it) |
-
-The ops repo supplies (protected): `PREVIEW_HOST_IP`,
-`PREVIEW_ANSIBLE_SSH_PRIVATE_KEY`, `PREVIEW_TENANT_NAME`, and
-`PREVIEW_SWEEP_TOKEN` (a read-api token for `scan_project`); the gem reads
-the API base from the predefined `CI_API_V4_URL`. Add a pipeline schedule
-(e.g. hourly) to run it.
+`templates/preview-build.yml` is the last remnant of the previous
+preview model and stays available until afinados (its last consumer)
+finishes migrating to `preview-app.yml`. Don't add new consumers to it.
 
 ## templates/release.yml
 

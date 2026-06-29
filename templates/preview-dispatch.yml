@@ -1,0 +1,30 @@
+spec:
+  inputs:
+    preview_stage:
+      default: "preview"
+      description: "Pipeline stage the dispatcher job runs in (the consumer must declare it)."
+    preview_timeout:
+      default: "5 minutes"
+      description: "Max wall-clock the dispatcher allows for a single deploy / stop / sweep run."
+---
+include:
+  - local: /lock.yml
+
+preview:
+  stage: $[[ inputs.preview_stage ]]
+  timeout: $[[ inputs.preview_timeout ]]
+  needs: []
+  image:
+    name: $STACK_GEM_RUNTIME_IMAGE
+  before_script: []
+  script:
+    - eiseron preview dispatch
+  environment:
+    name: production
+  rules:
+    - if: $PREVIEW_ACTION == "deploy"
+    - if: $PREVIEW_ACTION == "stop"
+    - if: $PREVIEW_ACTION == "sweep"
+    - if: $CI_PIPELINE_SOURCE == "schedule" && $DRIFT_CHECK != "1"
+      variables:
+        PREVIEW_ACTION: sweep
