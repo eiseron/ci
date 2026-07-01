@@ -314,7 +314,9 @@ regardless). Conflating them prevents `on_stop` from working while a
 review MR is still open.
 
 Scheduled pipelines without an explicit `PREVIEW_ACTION` (and without
-`DRIFT_CHECK=1`) default to `sweep`. `environment: production` is fixed
+`DRIFT_CHECK=1` or `BACKUP_JOB`) default to `sweep`. Backup schedules set
+`BACKUP_JOB=verify`/`drill` and are excluded, so the verify/drill runs do
+not also trigger a preview sweep. `environment: production` is fixed
 — it scopes the production CI vars (`SHARED_PG_USER`, `VPS_USER`,
 `PREVIEW_HOST_IP`, `ANSIBLE_SSH_PRIVATE_KEY`, `GITLAB_API_TOKEN`,
 `PREVIEW_*`, `EISERON_PREVIEW_*`) to the dispatcher job.

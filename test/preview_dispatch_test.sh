@@ -18,6 +18,7 @@ want 'PREVIEW_ACTION == "deploy"' "dispatcher does not fire on PREVIEW_ACTION=de
 want 'PREVIEW_ACTION == "stop"' "dispatcher does not fire on PREVIEW_ACTION=stop"
 want 'PREVIEW_ACTION == "sweep"' "dispatcher does not fire on PREVIEW_ACTION=sweep"
 want '$CI_PIPELINE_SOURCE == "schedule"' "dispatcher does not derive sweep from scheduled pipelines"
+want '$BACKUP_JOB == null' "scheduled sweep must skip backup schedules (BACKUP_JOB set) so verify/drill runs do not also trigger a preview sweep"
 want "PREVIEW_ACTION: sweep" "scheduled pipelines do not default PREVIEW_ACTION to sweep"
 
 want "eiseron preview dispatch" "dispatcher does not invoke the eiseron CLI"

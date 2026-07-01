@@ -25,6 +25,6 @@ preview:
     - if: $PREVIEW_ACTION == "deploy"
     - if: $PREVIEW_ACTION == "stop"
     - if: $PREVIEW_ACTION == "sweep"
-    - if: $CI_PIPELINE_SOURCE == "schedule" && $DRIFT_CHECK != "1"
+    - if: $CI_PIPELINE_SOURCE == "schedule" && $DRIFT_CHECK != "1" && $BACKUP_JOB == null
       variables:
         PREVIEW_ACTION: sweep
