@@ -22,8 +22,10 @@ spec:
 ---
 include:
   - local: /lock.yml
+  - local: /templates/notify-telegram.yml
 
 prod-backup:
+  extends: .notify_telegram_on_failure
   stage: $[[ inputs.backup_stage ]]
   needs: []
   image:

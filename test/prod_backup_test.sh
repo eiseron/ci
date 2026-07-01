@@ -36,4 +36,7 @@ want "needs: []" "backup job is not DAG-independent (would not appear as a stand
 want "name: production" "backup job does not run under the production environment"
 want "resource_group: production" "backup job is not serialized via the production resource_group"
 
+want "extends: .notify_telegram_on_failure" "backup must alert on Telegram on failure"
+want "/templates/notify-telegram.yml" "backup must include the notify-telegram template that defines the extends target"
+
 echo "PASS: prod-backup template wiring (manual button, inputs-fed, no PROD_TAG)"

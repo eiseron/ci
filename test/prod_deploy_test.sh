@@ -33,4 +33,7 @@ want "needs: []" "deploy job is not DAG-independent (would block behind the manu
 want "name: production" "deploy job does not run under the production environment"
 want "resource_group: production" "deploy job is not serialized via the production resource_group"
 
+want "extends: .notify_telegram_on_failure" "deploy must alert on Telegram on failure (auto-deploys are unattended)"
+want "/templates/notify-telegram.yml" "deploy must include the notify-telegram template that defines the extends target"
+
 echo "PASS: prod-deploy template wiring (thin, inputs-fed, gem-rotated DATABASE_URL)"

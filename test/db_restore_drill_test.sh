@@ -39,4 +39,7 @@ want "if: '\$CI_PIPELINE_SOURCE == \"web\" && \$BACKUP_JOB == \"drill\"'" "drill
 absent 'merge_request_event' "drill must not run on merge requests"
 absent 'CI_DEFAULT_BRANCH' "drill must not run on every default-branch push"
 
+want "extends: .notify_telegram_on_failure" "drill (scheduled, unattended) must alert on Telegram on failure — a silent drill failure means backups may not be restorable"
+want "/templates/notify-telegram.yml" "drill must include the notify-telegram template that defines the extends target"
+
 echo "PASS: db-restore-drill wiring"

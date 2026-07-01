@@ -22,8 +22,10 @@ spec:
 ---
 include:
   - local: /lock.yml
+  - local: /templates/notify-telegram.yml
 
 prod-deploy:
+  extends: .notify_telegram_on_failure
   stage: $[[ inputs.deploy_stage ]]
   needs: []
   image:

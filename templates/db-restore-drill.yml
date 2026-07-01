@@ -9,8 +9,10 @@ spec:
 ---
 include:
   - local: /lock.yml
+  - local: /templates/notify-telegram.yml
 
 db-restore-drill:
+  extends: .notify_telegram_on_failure
   stage: $[[ inputs.drill_stage ]]
   timeout: 15 minutes
   image:
