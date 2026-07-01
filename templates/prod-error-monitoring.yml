@@ -1,20 +1,20 @@
 spec:
   inputs:
     tenant_stage:
-      default: "glitchtip-tenant"
-      description: "Pipeline stage for the GlitchTip Postgres tenant job (the consumer must declare it)."
+      default: "error-monitoring-tenant"
+      description: "Pipeline stage for the error monitoring Postgres tenant job (the consumer must declare it)."
     deploy_stage:
-      default: "glitchtip"
-      description: "Pipeline stage for the GlitchTip deploy job (the consumer must declare it)."
+      default: "error-monitoring"
+      description: "Pipeline stage for the error monitoring deploy job (the consumer must declare it)."
 ---
 include:
   - local: /lock.yml
   - local: /templates/prod-tenant.yml
     inputs:
-      tenant_slug: "glitchtip"
+      tenant_slug: "error_monitoring"
       tenant_stage: $[[ inputs.tenant_stage ]]
 
-prod-glitchtip-deploy:
+prod-error-monitoring-deploy:
   stage: $[[ inputs.deploy_stage ]]
   needs: []
   image:
@@ -28,7 +28,7 @@ prod-glitchtip-deploy:
     GIT_STRATEGY: none
   before_script:
     - git clone "$STACK_PROVISIONING_REPO" /tmp/provisioning && git -C /tmp/provisioning checkout "$STACK_PROVISIONING_SHA"
-    - cp -r /tmp/provisioning/kamal/glitchtip/. .
+    - cp -r /tmp/provisioning/kamal/error-monitoring/. .
     - eval "$(ssh-agent -s)"
     - install -d -m 700 ~/.ssh
     - install -m 600 "$PROD_SSH_PRIVATE_KEY" ~/.ssh/prod_deploy_key

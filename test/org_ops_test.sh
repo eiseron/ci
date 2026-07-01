@@ -18,8 +18,8 @@ want_absent() {
 
 want 'local: /templates/ops.yml' "facade nao compoe ops.yml"
 want 'local: /templates/prod-platform.yml' "facade nao compoe prod-platform.yml"
-want 'local: /templates/prod-glitchtip.yml' "facade nao compoe prod-glitchtip.yml"
-want '"$[[ inputs.glitchtip ]]" == "true"' "prod-glitchtip nao e gateado pelo input glitchtip"
+want 'local: /templates/prod-error-monitoring.yml' "facade nao compoe prod-error-monitoring.yml"
+want '"$[[ inputs.error_monitoring ]]" == "true"' "prod-error-monitoring nao e gateado pelo input error_monitoring"
 
 want 'apply:' "facade nao redeclara apply"
 want '$TF_STATE_RM == null' "apply override nao tem o guard TF_STATE_RM (state-rm colide com apply em pipeline web na production)"

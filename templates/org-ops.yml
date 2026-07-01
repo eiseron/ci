@@ -41,16 +41,16 @@ spec:
       type: string
       default: ""
       description: "Comma-separated TF addresses refreshed by rotate-sa-tokens on ROTATE_SA=1 schedules. Empty disables the job."
-    glitchtip:
+    error_monitoring:
       type: boolean
       default: false
-      description: "Pulls in the stack/ci prod-glitchtip template (manual tenant + deploy jobs for the shared GlitchTip service)."
-    glitchtip_tenant_stage:
-      default: "glitchtip-tenant"
-      description: "Stage declared for the GlitchTip tenant job (must be in stages)."
-    glitchtip_stage:
-      default: "glitchtip"
-      description: "Stage declared for the GlitchTip deploy job (must be in stages)."
+      description: "Pulls in the stack/ci prod-error-monitoring template (manual tenant + deploy jobs for the shared error monitoring service)."
+    error_monitoring_tenant_stage:
+      default: "error-monitoring-tenant"
+      description: "Stage declared for the error monitoring tenant job (must be in stages)."
+    error_monitoring_stage:
+      default: "error-monitoring"
+      description: "Stage declared for the error monitoring deploy job (must be in stages)."
 ---
 
 include:
@@ -64,12 +64,12 @@ include:
       - if: '"$[[ inputs.prod_platform ]]" == "true"'
     inputs:
       platform_stage: $[[ inputs.prod_platform_stage ]]
-  - local: /templates/prod-glitchtip.yml
+  - local: /templates/prod-error-monitoring.yml
     rules:
-      - if: '"$[[ inputs.glitchtip ]]" == "true"'
+      - if: '"$[[ inputs.error_monitoring ]]" == "true"'
     inputs:
-      tenant_stage: $[[ inputs.glitchtip_tenant_stage ]]
-      deploy_stage: $[[ inputs.glitchtip_stage ]]
+      tenant_stage: $[[ inputs.error_monitoring_tenant_stage ]]
+      deploy_stage: $[[ inputs.error_monitoring_stage ]]
 
 stages:
   - lint
@@ -82,8 +82,8 @@ stages:
   - keyserver-provision
   - prod-provision
   - platform
-  - glitchtip-tenant
-  - glitchtip
+  - error-monitoring-tenant
+  - error-monitoring
   - drift
 
 workflow:
