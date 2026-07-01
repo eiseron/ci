@@ -33,9 +33,9 @@ db-restore-drill:
     PGPASSWORD: postgres
     PROD_DRILL_DATABASE: drill
     PROD_BACKUP_NAME: "$[[ inputs.app_name ]]"
-    AWS_ACCESS_KEY_ID: "$PROD_DRILL_AWS_ACCESS_KEY_ID"
-    AWS_SECRET_ACCESS_KEY: "$PROD_DRILL_AWS_SECRET_ACCESS_KEY"
   before_script:
+    - export AWS_ACCESS_KEY_ID="$PROD_DRILL_AWS_ACCESS_KEY_ID"
+    - export AWS_SECRET_ACCESS_KEY="$PROD_DRILL_AWS_SECRET_ACCESS_KEY"
     - n=0; until pg_isready -h postgres -U postgres -t 1; do n=$((n+1)); [ "$n" -ge 30 ] && { echo "postgres service did not become ready after 30 attempts"; exit 1; }; sleep 1; done
   script:
     - eiseron db restore-drill

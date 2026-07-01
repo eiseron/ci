@@ -22,8 +22,11 @@ grep -qE 'services:' "$template" &&
 grep -qE 'PGHOST|PGUSER|PGPASSWORD' "$template" &&
   fail "verify must not need Postgres credentials; it is read-only on R2"
 
-want 'AWS_ACCESS_KEY_ID: "$PROD_DRILL_AWS_ACCESS_KEY_ID"' "verify must consume the read-only drill R2 creds, not the backup write creds"
-want 'AWS_SECRET_ACCESS_KEY: "$PROD_DRILL_AWS_SECRET_ACCESS_KEY"' "verify must consume the read-only drill R2 creds, not the backup write creds"
+want 'export AWS_ACCESS_KEY_ID="$PROD_DRILL_AWS_ACCESS_KEY_ID"' "verify must export the drill R2 creds at runtime; a variables: mapping is overridden by a project-level AWS_ACCESS_KEY_ID (project vars outrank .gitlab-ci.yml vars)"
+want 'export AWS_SECRET_ACCESS_KEY="$PROD_DRILL_AWS_SECRET_ACCESS_KEY"' "verify must export the drill R2 secret at runtime to beat a project-level AWS_SECRET_ACCESS_KEY"
+
+grep -qE '^[[:space:]]+AWS_ACCESS_KEY_ID:' "$template" &&
+  fail "verify must NOT set AWS creds via variables: (a project-level AWS_ACCESS_KEY_ID would override it); export in before_script instead"
 
 want '$CI_PIPELINE_SOURCE == "schedule" && $BACKUP_JOB == "verify"' "verify must be gated to a schedule that sets BACKUP_JOB=verify (otherwise the weekly drill schedule would trigger the verify too)"
 want '$CI_PIPELINE_SOURCE == "web" && $BACKUP_JOB == "verify"' "verify must be triggerable from a web pipeline that sets BACKUP_JOB=verify"

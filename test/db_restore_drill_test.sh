@@ -28,8 +28,11 @@ want 'GIT_STRATEGY: none' "drill needs no source checkout"
 want 'timeout: 15 minutes' "job must cap its runtime so a hung service does not hold a runner"
 want '[ "$n" -ge 30 ]' "postgres readiness wait must be bounded by an attempt cap"
 want 'exit 1' "bounded readiness wait must fail the job when postgres never comes up"
-want 'AWS_ACCESS_KEY_ID: "$PROD_DRILL_AWS_ACCESS_KEY_ID"' "R2 read creds must map from PROD_DRILL_AWS_* (AWS_* collides with the ops state backend)"
-want 'AWS_SECRET_ACCESS_KEY: "$PROD_DRILL_AWS_SECRET_ACCESS_KEY"' "R2 read secret must map from PROD_DRILL_AWS_*"
+want 'export AWS_ACCESS_KEY_ID="$PROD_DRILL_AWS_ACCESS_KEY_ID"' "drill must export the R2 read creds at runtime; AWS_* collides with the project-level AWS_ACCESS_KEY_ID, which outranks .gitlab-ci.yml variables: and would otherwise win"
+want 'export AWS_SECRET_ACCESS_KEY="$PROD_DRILL_AWS_SECRET_ACCESS_KEY"' "drill must export the R2 read secret at runtime to beat the project-level AWS_SECRET_ACCESS_KEY"
+
+grep -qE '^[[:space:]]+AWS_ACCESS_KEY_ID:' "$template" &&
+  fail "drill must NOT set AWS creds via variables: (a project-level AWS_ACCESS_KEY_ID would override it); export in before_script instead"
 
 want "if: '\$CI_PIPELINE_SOURCE == \"schedule\" && \$BACKUP_JOB == \"drill\"'" "drill must be gated to a schedule that sets BACKUP_JOB=drill (otherwise the daily verify schedule would trigger the drill too)"
 want "if: '\$CI_PIPELINE_SOURCE == \"web\" && \$BACKUP_JOB == \"drill\"'" "drill must be triggerable from a web pipeline that sets BACKUP_JOB=drill"
