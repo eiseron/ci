@@ -1,0 +1,42 @@
+spec:
+  inputs:
+    tenant_stage:
+      default: "glitchtip-tenant"
+      description: "Pipeline stage for the GlitchTip Postgres tenant job (the consumer must declare it)."
+    deploy_stage:
+      default: "glitchtip"
+      description: "Pipeline stage for the GlitchTip deploy job (the consumer must declare it)."
+---
+include:
+  - local: /lock.yml
+  - local: /templates/prod-tenant.yml
+    inputs:
+      tenant_slug: "glitchtip"
+      tenant_stage: $[[ inputs.tenant_stage ]]
+
+prod-glitchtip-deploy:
+  stage: $[[ inputs.deploy_stage ]]
+  needs: []
+  image:
+    name: $STACK_OPS_IMAGE
+  tags:
+    - self-hosted
+  environment:
+    name: production
+  resource_group: production
+  variables:
+    GIT_STRATEGY: none
+  before_script:
+    - git clone "$STACK_PROVISIONING_REPO" /tmp/provisioning && git -C /tmp/provisioning checkout "$STACK_PROVISIONING_SHA"
+    - cp -r /tmp/provisioning/kamal/glitchtip/. .
+    - eval "$(ssh-agent -s)"
+    - install -d -m 700 ~/.ssh
+    - install -m 600 "$PROD_SSH_PRIVATE_KEY" ~/.ssh/prod_deploy_key
+    - ssh-add ~/.ssh/prod_deploy_key
+    - printf 'Host *\n  StrictHostKeyChecking accept-new\n' > ~/.ssh/config
+  script:
+    - kamal accessory boot redis --version="$CI_COMMIT_SHORT_SHA"
+    - kamal deploy --version="$CI_COMMIT_SHORT_SHA"
+  rules:
+    - if: $CI_COMMIT_BRANCH == "production" && $CI_PIPELINE_SOURCE != "schedule"
+      when: manual

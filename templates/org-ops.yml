@@ -41,6 +41,16 @@ spec:
       type: string
       default: ""
       description: "Comma-separated TF addresses refreshed by rotate-sa-tokens on ROTATE_SA=1 schedules. Empty disables the job."
+    glitchtip:
+      type: boolean
+      default: false
+      description: "Pulls in the stack/ci prod-glitchtip template (manual tenant + deploy jobs for the shared GlitchTip service)."
+    glitchtip_tenant_stage:
+      default: "glitchtip-tenant"
+      description: "Stage declared for the GlitchTip tenant job (must be in stages)."
+    glitchtip_stage:
+      default: "glitchtip"
+      description: "Stage declared for the GlitchTip deploy job (must be in stages)."
 ---
 
 include:
@@ -54,6 +64,12 @@ include:
       - if: '"$[[ inputs.prod_platform ]]" == "true"'
     inputs:
       platform_stage: $[[ inputs.prod_platform_stage ]]
+  - local: /templates/prod-glitchtip.yml
+    rules:
+      - if: '"$[[ inputs.glitchtip ]]" == "true"'
+    inputs:
+      tenant_stage: $[[ inputs.glitchtip_tenant_stage ]]
+      deploy_stage: $[[ inputs.glitchtip_stage ]]
 
 stages:
   - lint
@@ -66,6 +82,8 @@ stages:
   - keyserver-provision
   - prod-provision
   - platform
+  - glitchtip-tenant
+  - glitchtip
   - drift
 
 workflow:
