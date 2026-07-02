@@ -70,9 +70,10 @@ prod-error-monitoring-deploy:
     - kamal deploy --skip-push --version="$CI_COMMIT_SHORT_SHA"
     - |
       if [ -n "${ERROR_MONITORING_ADMIN_EMAIL:-}" ]; then
-        PW="$(openssl rand -hex 24)"
-        kamal app exec --reuse "python manage.py shell -c \"from django.contrib.auth import get_user_model as G; U=G(); e='${ERROR_MONITORING_ADMIN_EMAIL}'; U.objects.filter(email=e).exists() or U.objects.create_superuser(email=e, password='${PW}')\"" \
-          || echo "WARN: superuser bootstrap failed; create it manually (kamal app exec ... createsuperuser)"
+        kamal app exec --reuse --version="$CI_COMMIT_SHORT_SHA" "python manage.py shell -c \"import secrets; from django.contrib.auth import get_user_model as G; U=G(); e='${ERROR_MONITORING_ADMIN_EMAIL}'; U.objects.filter(email=e).exists() or U.objects.create_superuser(email=e, password=secrets.token_hex(24))\"" \
+          || echo "WARN: superuser bootstrap failed"
+        kamal app exec --reuse --version="$CI_COMMIT_SHORT_SHA" "python manage.py shell -c \"from django.core.mail import send_mail; send_mail('error monitoring: email delivery test', 'This message confirms outbound email is configured.', None, ['${ERROR_MONITORING_ADMIN_EMAIL}'])\"" \
+          || echo "WARN: SMTP smoke-test failed — check EMAIL_URL and the Zoho send-as alias"
       fi
   rules:
     - if: $CI_COMMIT_BRANCH == "production" && $CI_PIPELINE_SOURCE != "schedule"
