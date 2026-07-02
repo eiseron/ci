@@ -26,6 +26,7 @@ want "kamal/error-monitoring/." "the canonical kamal/error-monitoring manifest i
 want '$STACK_PROVISIONING_REPO' "provisioning is not cloned for the canonical manifest"
 want "kamal accessory reboot redis" "deploy does not reboot the redis accessory (boot is not idempotent on re-run)"
 want "kamal deploy --skip-push" "deploy still builds (must --skip-push the kaniko-built image)"
+want '--version="$CI_COMMIT_SHORT_SHA" "python manage.py migrate' "deploy does not run migrations targeting the deployed image version before serving"
 want "ERROR_MONITORING_ADMIN_EMAIL" "deploy does not bootstrap an admin (superuser) when the consumer sets the admin email"
 want "create_superuser" "deploy does not create the superuser idempotently"
 want "secrets.token_hex" "superuser password must be generated in-process, never on the exec argv (avoids CI log + host ps exposure)"

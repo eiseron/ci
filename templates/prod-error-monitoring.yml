@@ -67,6 +67,7 @@ prod-error-monitoring-deploy:
     - printf 'Host *\n  StrictHostKeyChecking accept-new\n' > ~/.ssh/config
   script:
     - kamal accessory reboot redis --version="$CI_COMMIT_SHORT_SHA"
+    - kamal app exec --version="$CI_COMMIT_SHORT_SHA" "python manage.py migrate --noinput"
     - kamal deploy --skip-push --version="$CI_COMMIT_SHORT_SHA"
     - |
       if [ -n "${ERROR_MONITORING_ADMIN_EMAIL:-}" ]; then
