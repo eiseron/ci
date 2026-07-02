@@ -3,9 +3,9 @@
 # Thin wrapper over `eiseron preview dispatch` (eiseron_automation), which for
 # PREVIEW_KIND=pages downloads the sealed dist and runs wrangler WITHOUT
 # building, so the MR's untrusted build never runs alongside the token. Bound to
-# environment: production so it — and only it — gets the protected token. Node
-# is installed for wrangler; the gem-runtime base is Debian (GNU tar) so the
-# sealed-tarball validation confines absolute/.. paths.
+# environment: production so it — and only it — gets the protected token.
+# Wrangler runs on the Node baked into the gem-runtime image; that base is
+# Debian (GNU tar) so the sealed-tarball validation confines absolute/.. paths.
 #
 # Requires on the deployer (-ops) project, protected + environment_scope=production:
 #   CLOUDFLARE_PAGES_PREVIEW_TOKEN  Cloudflare API token scoped to "Pages Write"
@@ -27,9 +27,6 @@ spec:
     preview_stage:
       default: "preview"
       description: "Stage the deployer job runs in (the consumer must declare it)."
-    node_setup_url:
-      default: "https://deb.nodesource.com/setup_22.x"
-      description: "NodeSource setup script; installs a wrangler-compatible Node on the gem-runtime base. wrangler@4 requires Node >= 22."
     preview_timeout:
       default: "10 minutes"
       description: "Max wall-clock for a single preview download + deploy."
@@ -56,10 +53,5 @@ preview_pages:
       when: never
     - if: $PREVIEW_ACTION == "deploy"
     - if: $PREVIEW_ACTION == "stop"
-  before_script:
-    - apt-get update -qq
-    - curl -fsSL "$[[ inputs.node_setup_url ]]" -o /tmp/nodesource_setup.sh
-    - bash /tmp/nodesource_setup.sh >/dev/null
-    - apt-get install -y -qq nodejs >/dev/null
   script:
     - eiseron preview dispatch

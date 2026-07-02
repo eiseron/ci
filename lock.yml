@@ -12,20 +12,20 @@ variables:
   STACK_PROVISIONING_REPO: https://gitlab.com/eiseron/stack/provisioning.git
   STACK_PROVISIONING_REF: v0.73.0
   STACK_PROVISIONING_SHA: 8391cc6a373d35d6be53210982a961b7972cef81
-  STACK_IAC_IMAGE: registry.gitlab.com/eiseron/stack/public-image-bases/iac@sha256:763c0845fbc3504cbd886b5a881a00bbd572ad42055bc879266459b3972e25e5
-  STACK_IAC_TAG: v0.1.34
+  STACK_IAC_IMAGE: registry.gitlab.com/eiseron/stack/public-image-bases/iac@sha256:4f9c1ff578e14509efeb5d8d9b74cd41b8a6b13d26414e258dba8740f527918c
+  STACK_IAC_TAG: v0.1.35
   STACK_OPS_IMAGE: registry.gitlab.com/eiseron/stack/public-image-bases/ops@sha256:bab329452e854875f2be8d505892663bb73a3d876881976952553f8f52d6da5a
   STACK_OPS_TAG: v0.1.30
-  STACK_GEM_RUNTIME_IMAGE: registry.gitlab.com/eiseron/stack/public-image-bases/gem-runtime@sha256:4f0566d68addf2571e91e968ef05a6dfd12104db76b6f73ad82478c5bfd7846a
-  STACK_GEM_RUNTIME_TAG: v0.1.34
+  STACK_GEM_RUNTIME_IMAGE: registry.gitlab.com/eiseron/stack/public-image-bases/gem-runtime@sha256:9e7823b59ca2f510296df1ce701d584c05a24924ecbc0be2ed81a82141054cfd
+  STACK_GEM_RUNTIME_TAG: v0.1.35
   STACK_ELIXIR_BUILDER_IMAGE: registry.gitlab.com/eiseron/stack/public-image-bases/elixir-builder@sha256:b8ad259a4fc2d1300247462a05e6565ecd6e211348a6013a6f4077b109615996
   STACK_ELIXIR_BUILDER_TAG: v0.1.30
   STACK_ALPINE_DEPLOY_IMAGE: registry.gitlab.com/eiseron/stack/public-image-bases/alpine-deploy@sha256:cdd26a4c5047f135642b3499df5f74ea36593bcf0bdfb0d867b9d469db86b249
   STACK_ALPINE_DEPLOY_TAG: v0.1.30
   STACK_PYTHON_ANSIBLE_IMAGE: registry.gitlab.com/eiseron/stack/public-image-bases/python-ansible@sha256:5b603dbe7f5e4d49fb1f4d64779473e5c84eaade2cc3f84c03582cd74637b1ed
   STACK_PYTHON_ANSIBLE_TAG: v0.1.30
-  STACK_GO_TOOLS_IMAGE: registry.gitlab.com/eiseron/stack/public-image-bases/go-tools@sha256:9f274a501e7ceadc36781445adecd47a10af084e57bd49efde8abd3a189b68a3
-  STACK_GO_TOOLS_TAG: v0.1.34
+  STACK_GO_TOOLS_IMAGE: registry.gitlab.com/eiseron/stack/public-image-bases/go-tools@sha256:8122232ae6fe43900b83ad850356f7a3890d1125f607cf8921134c1a9245505a
+  STACK_GO_TOOLS_TAG: v0.1.35
   STACK_RUBY_IMAGE: docker.io/library/ruby@sha256:dc01e7d51e7ec9b9d1b27b80dab38d313b338fce50489e9b0f128b861712b7ef
   STACK_RUBY_TAG: 3.3-alpine
   STACK_ALPINE_IMAGE: docker.io/library/alpine@sha256:5b10f432ef3da1b8d4c7eb6c487f2f5a8f096bc91145e68878dd4a5019afde11

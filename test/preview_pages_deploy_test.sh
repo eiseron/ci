@@ -27,9 +27,10 @@ want '$PREVIEW_ACTION == "deploy"' "deployer does not handle deploy"
 want '$PREVIEW_ACTION == "stop"' "deployer does not handle stop"
 
 want "STACK_GEM_RUNTIME_IMAGE" "deployer does not run on the gem-runtime image"
-want "nodejs" "deployer does not install Node for wrangler"
 
 want "- local: /lock.yml" "does not include the lock (STACK_GEM_RUNTIME_IMAGE would be unset outside ops repos)"
-want "setup_22.x" "default Node is too old for wrangler@4 (needs Node >= 22)"
+
+reject "nodesource" "Node must come baked in the gem-runtime image, not fetched in the token-bearing job"
+reject "node_setup_url" "the node_setup_url input is gone now that Node is baked into the image"
 
 reject "PREVIEW_PAGES_PROJECT:" "the deploy target must come from the deployer's own protected var, not be set in the template"
