@@ -5,7 +5,7 @@ spec:
       description: "Pipeline stage for the error monitoring Postgres tenant job (the consumer must declare it)."
     deploy_stage:
       default: "error-monitoring"
-      description: "Pipeline stage for the error monitoring deploy job (the consumer must declare it)."
+      description: "Pipeline stage for the error monitoring build + deploy jobs (the consumer must declare it)."
 ---
 include:
   - local: /lock.yml
@@ -14,9 +14,39 @@ include:
       tenant_slug: "error_monitoring"
       tenant_stage: $[[ inputs.tenant_stage ]]
 
-prod-error-monitoring-deploy:
+prod-error-monitoring-build:
   stage: $[[ inputs.deploy_stage ]]
   needs: []
+  image:
+    name: gcr.io/kaniko-project/executor:v1.21.1-debug
+    entrypoint: [""]
+  tags:
+    - self-hosted
+  environment:
+    name: production
+  resource_group: production
+  variables:
+    GIT_STRATEGY: none
+    DOCKER_CONFIG: "/kaniko/.docker"
+  script:
+    - REG="${KAMAL_REGISTRY_SERVER:-registry.gitlab.com}"
+    - AUTH_B64="$(printf '%s:%s' "$KAMAL_REGISTRY_USERNAME" "$KAMAL_REGISTRY_PASSWORD" | base64 | tr -d '\n')"
+    - mkdir -p "$DOCKER_CONFIG"
+    - echo "{\"auths\":{\"${REG%%/*}\":{\"auth\":\"$AUTH_B64\"}}}" > "$DOCKER_CONFIG/config.json"
+    - >
+      /kaniko/executor
+      --context "git://gitlab.com/eiseron/stack/provisioning.git#refs/tags/$STACK_PROVISIONING_REF"
+      --context-sub-path "kamal/error-monitoring"
+      --dockerfile "Dockerfile"
+      --destination "$REG/platform/error-monitoring:$CI_COMMIT_SHORT_SHA"
+      --push-retry=3
+  rules:
+    - if: $CI_COMMIT_BRANCH == "production" && $CI_PIPELINE_SOURCE != "schedule"
+
+prod-error-monitoring-deploy:
+  stage: $[[ inputs.deploy_stage ]]
+  needs:
+    - job: prod-error-monitoring-build
   image:
     name: $STACK_OPS_IMAGE
   tags:
@@ -35,8 +65,8 @@ prod-error-monitoring-deploy:
     - ssh-add ~/.ssh/prod_deploy_key
     - printf 'Host *\n  StrictHostKeyChecking accept-new\n' > ~/.ssh/config
   script:
-    - kamal accessory boot redis --version="$CI_COMMIT_SHORT_SHA"
-    - kamal deploy --version="$CI_COMMIT_SHORT_SHA"
+    - kamal accessory reboot redis --version="$CI_COMMIT_SHORT_SHA"
+    - kamal deploy --skip-push --version="$CI_COMMIT_SHORT_SHA"
   rules:
     - if: $CI_COMMIT_BRANCH == "production" && $CI_PIPELINE_SOURCE != "schedule"
       when: manual
