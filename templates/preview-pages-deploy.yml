@@ -53,5 +53,6 @@ preview_pages:
       when: never
     - if: $PREVIEW_ACTION == "deploy"
     - if: $PREVIEW_ACTION == "stop"
+  before_script: []
   script:
     - eiseron preview dispatch

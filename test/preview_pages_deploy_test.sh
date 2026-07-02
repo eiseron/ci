@@ -30,6 +30,8 @@ want "STACK_GEM_RUNTIME_IMAGE" "deployer does not run on the gem-runtime image"
 
 want "- local: /lock.yml" "does not include the lock (STACK_GEM_RUNTIME_IMAGE would be unset outside ops repos)"
 
+want "before_script: []" "deployer must override the ops facade default before_script (sops/tofu init), not inherit it on the gem-runtime image"
+
 reject "nodesource" "Node must come baked in the gem-runtime image, not fetched in the token-bearing job"
 reject "node_setup_url" "the node_setup_url input is gone now that Node is baked into the image"
 
