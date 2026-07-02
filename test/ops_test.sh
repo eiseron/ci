@@ -22,4 +22,6 @@ want '$CI_PIPELINE_SOURCE != "pipeline"' "plan/apply devem excluir source=pipeli
 
 want '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH' "plan deve continuar rodando no branch default (ancora de branch preservada, sem sobre-exclusao)"
 
+want '$CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "production" && $CI_MERGE_REQUEST_SOURCE_BRANCH_NAME == "main"' "plan deve rodar so no promote MR (source main -> target production) para que um plan quebrado bloqueie o merge; escopar por source==main evita disparar em MRs espurios de branch nao-protegido mirando production (que so gerariam pipeline vermelha ruidosa)"
+
 echo "PASS: ops facade wiring"
