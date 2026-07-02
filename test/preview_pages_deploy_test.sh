@@ -30,5 +30,6 @@ want "STACK_GEM_RUNTIME_IMAGE" "deployer does not run on the gem-runtime image"
 want "nodejs" "deployer does not install Node for wrangler"
 
 want "- local: /lock.yml" "does not include the lock (STACK_GEM_RUNTIME_IMAGE would be unset outside ops repos)"
+want "setup_22.x" "default Node is too old for wrangler@4 (needs Node >= 22)"
 
 reject "PREVIEW_PAGES_PROJECT:" "the deploy target must come from the deployer's own protected var, not be set in the template"

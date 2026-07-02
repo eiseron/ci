@@ -28,8 +28,8 @@ spec:
       default: "preview"
       description: "Stage the deployer job runs in (the consumer must declare it)."
     node_setup_url:
-      default: "https://deb.nodesource.com/setup_20.x"
-      description: "NodeSource setup script; installs a wrangler-compatible Node on the gem-runtime base."
+      default: "https://deb.nodesource.com/setup_22.x"
+      description: "NodeSource setup script; installs a wrangler-compatible Node on the gem-runtime base. wrangler@4 requires Node >= 22."
     preview_timeout:
       default: "10 minutes"
       description: "Max wall-clock for a single preview download + deploy."
@@ -58,7 +58,8 @@ preview_pages:
     - if: $PREVIEW_ACTION == "stop"
   before_script:
     - apt-get update -qq
-    - curl -fsSL "$[[ inputs.node_setup_url ]]" | bash - >/dev/null
+    - curl -fsSL "$[[ inputs.node_setup_url ]]" -o /tmp/nodesource_setup.sh
+    - bash /tmp/nodesource_setup.sh >/dev/null
     - apt-get install -y -qq nodejs >/dev/null
   script:
     - eiseron preview dispatch
