@@ -26,6 +26,8 @@ want "kamal/error-monitoring/." "the canonical kamal/error-monitoring manifest i
 want '$STACK_PROVISIONING_REPO' "provisioning is not cloned for the canonical manifest"
 want "kamal accessory reboot redis" "deploy does not reboot the redis accessory (boot is not idempotent on re-run)"
 want "kamal deploy --skip-push" "deploy still builds (must --skip-push the kaniko-built image)"
+want "ERROR_MONITORING_ADMIN_EMAIL" "deploy does not bootstrap an admin (superuser) when the consumer sets the admin email"
+want "create_superuser" "deploy does not create the superuser idempotently"
 want '$CI_COMMIT_BRANCH == "production"' "error monitoring jobs are not gated to the production branch"
 want "when: manual" "deploy job is not manual"
 want "name: production" "jobs do not run under the production environment"
