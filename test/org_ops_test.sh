@@ -21,6 +21,8 @@ want 'local: /templates/prod-platform.yml' "facade nao compoe prod-platform.yml"
 want 'local: /templates/prod-error-monitoring.yml' "facade nao compoe prod-error-monitoring.yml"
 want '"$[[ inputs.error_monitoring ]]" == "true"' "prod-error-monitoring nao e gateado pelo input error_monitoring"
 
+grep -qE '^  - preview$' "$template" || fail "preview stage ausente (o deployer de pages-preview roda nele)"
+
 want 'apply:' "facade nao redeclara apply"
 want '$TF_STATE_RM == null' "apply override nao tem o guard TF_STATE_RM (state-rm colide com apply em pipeline web na production)"
 

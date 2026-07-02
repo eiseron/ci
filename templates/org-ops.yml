@@ -75,6 +75,7 @@ stages:
   - lint
   - plan
   - apply
+  - preview
   - rotate
   - runner-apply
   - runner-provision
