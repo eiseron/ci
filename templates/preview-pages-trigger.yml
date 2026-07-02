@@ -35,6 +35,9 @@ spec:
       default: "7 days"
       description: "Idle time after which GitLab auto-stops (and tears down) the preview."
 ---
+include:
+  - local: /lock.yml
+
 .pages_trigger:
   stage: $[[ inputs.preview_stage ]]
   image:

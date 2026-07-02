@@ -34,6 +34,9 @@ spec:
       default: "10 minutes"
       description: "Max wall-clock for a single preview download + deploy."
 ---
+include:
+  - local: /lock.yml
+
 preview_pages:
   stage: $[[ inputs.preview_stage ]]
   timeout: $[[ inputs.preview_timeout ]]

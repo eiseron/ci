@@ -31,6 +31,8 @@ want "on_stop: stop_preview" "does not wire on_stop"
 want ".pages.dev" "environment URL is not the deterministic pages.dev preview host"
 want "action: stop" "stop_preview does not stop the environment"
 want "STACK_GEM_RUNTIME_IMAGE" "does not run on the gem-runtime image (which ships the eiseron CLI)"
+want "- local: /lock.yml" "does not include the lock (STACK_GEM_RUNTIME_IMAGE would be unset outside ops repos)"
+
 
 reject "wrangler" "the trigger side must not run wrangler (the deployer does)"
 reject "CLOUDFLARE" "the trigger side must not reference the Cloudflare token"
