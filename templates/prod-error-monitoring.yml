@@ -56,7 +56,7 @@ prod-error-monitoring-deploy:
   resource_group: production
   variables:
     GIT_STRATEGY: none
-    ERROR_MONITORING_IMAGE: "$CI_REGISTRY_IMAGE/error-monitoring"
+    ERROR_MONITORING_IMAGE: "$CI_PROJECT_PATH/error-monitoring"
   before_script:
     - git clone "$STACK_PROVISIONING_REPO" /tmp/provisioning && git -C /tmp/provisioning checkout "$STACK_PROVISIONING_SHA"
     - cp -r /tmp/provisioning/kamal/error-monitoring/. .

@@ -17,7 +17,7 @@ want "/kaniko/executor" "build job does not use kaniko (daemonless; the ops runn
 want "before_script: []" "build job does not clear the inherited before_script (ops.yml sops/tofu setup fails on the kaniko image)"
 want 'gitlab-ci-token:' "build job does not auth kaniko with the project CI job token"
 want '$CI_REGISTRY_IMAGE/error-monitoring:' "build job does not push to the project-owned writable registry"
-want 'ERROR_MONITORING_IMAGE: "$CI_REGISTRY_IMAGE/error-monitoring"' "deploy does not point the manifest image at the pushed image"
+want 'ERROR_MONITORING_IMAGE: "$CI_PROJECT_PATH/error-monitoring"' "deploy image must be the host-less repo path (kamal prepends registry.server)"
 want "local: /templates/prod-tenant.yml" "error monitoring does not reuse the shared prod-tenant job for its Postgres role/db"
 want 'tenant_slug: "error_monitoring"' "error monitoring tenant is not provisioned under the error_monitoring slug"
 want "prod-error-monitoring-deploy:" "error monitoring deploy job is missing"
