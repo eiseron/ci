@@ -14,6 +14,7 @@ want() {
 
 want "prod-error-monitoring-build:" "error monitoring build job is missing"
 want "/kaniko/executor" "build job does not use kaniko (daemonless; the ops runner has no docker daemon)"
+want "before_script: []" "build job does not clear the inherited before_script (ops.yml sops/tofu setup fails on the kaniko image)"
 want "platform/error-monitoring:" "build job does not push the image to our registry path"
 want "local: /templates/prod-tenant.yml" "error monitoring does not reuse the shared prod-tenant job for its Postgres role/db"
 want 'tenant_slug: "error_monitoring"' "error monitoring tenant is not provisioned under the error_monitoring slug"

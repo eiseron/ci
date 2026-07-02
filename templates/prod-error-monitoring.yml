@@ -28,6 +28,7 @@ prod-error-monitoring-build:
   variables:
     GIT_STRATEGY: none
     DOCKER_CONFIG: "/kaniko/.docker"
+  before_script: []
   script:
     - REG="${KAMAL_REGISTRY_SERVER:-registry.gitlab.com}"
     - AUTH_B64="$(printf '%s:%s' "$KAMAL_REGISTRY_USERNAME" "$KAMAL_REGISTRY_PASSWORD" | base64 | tr -d '\n')"
