@@ -30,16 +30,15 @@ prod-error-monitoring-build:
     DOCKER_CONFIG: "/kaniko/.docker"
   before_script: []
   script:
-    - REG="${KAMAL_REGISTRY_SERVER:-registry.gitlab.com}"
-    - AUTH_B64="$(printf '%s:%s' "$KAMAL_REGISTRY_USERNAME" "$KAMAL_REGISTRY_PASSWORD" | base64 | tr -d '\n')"
+    - AUTH_B64="$(printf 'gitlab-ci-token:%s' "$CI_JOB_TOKEN" | base64 | tr -d '\n')"
     - mkdir -p "$DOCKER_CONFIG"
-    - echo "{\"auths\":{\"${REG%%/*}\":{\"auth\":\"$AUTH_B64\"}}}" > "$DOCKER_CONFIG/config.json"
+    - echo "{\"auths\":{\"$CI_REGISTRY\":{\"auth\":\"$AUTH_B64\"}}}" > "$DOCKER_CONFIG/config.json"
     - >
       /kaniko/executor
       --context "git://gitlab.com/eiseron/stack/provisioning.git#refs/tags/$STACK_PROVISIONING_REF"
       --context-sub-path "kamal/error-monitoring"
       --dockerfile "Dockerfile"
-      --destination "$REG/platform/error-monitoring:$CI_COMMIT_SHORT_SHA"
+      --destination "$CI_REGISTRY_IMAGE/error-monitoring:$CI_COMMIT_SHORT_SHA"
       --push-retry=3
   rules:
     - if: $CI_COMMIT_BRANCH == "production" && $CI_PIPELINE_SOURCE != "schedule"
@@ -57,6 +56,7 @@ prod-error-monitoring-deploy:
   resource_group: production
   variables:
     GIT_STRATEGY: none
+    ERROR_MONITORING_IMAGE: "$CI_REGISTRY_IMAGE/error-monitoring"
   before_script:
     - git clone "$STACK_PROVISIONING_REPO" /tmp/provisioning && git -C /tmp/provisioning checkout "$STACK_PROVISIONING_SHA"
     - cp -r /tmp/provisioning/kamal/error-monitoring/. .
