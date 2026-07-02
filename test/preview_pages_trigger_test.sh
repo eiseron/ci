@@ -27,6 +27,7 @@ want "job: \$[[ inputs.build_job ]]" "trigger_preview does not need the build ar
 
 want '$CI_PIPELINE_SOURCE == "merge_request_event"' "trigger_preview is not MR-gated"
 want "when: manual" "stop_preview is not manual"
+want "allow_failure: true" "stop_preview must be allow_failure:true — when: manual inside rules defaults to allow_failure:false, blocking the pipeline (status manual) and making the MR un-mergeable under only-merge-if-pipeline-succeeds"
 want "on_stop: stop_preview" "does not wire on_stop"
 want ".pages.dev" "environment URL is not the deterministic pages.dev preview host"
 want "action: stop" "stop_preview does not stop the environment"

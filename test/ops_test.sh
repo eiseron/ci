@@ -17,4 +17,9 @@ want 'apply:' "facade nao define apply"
 want '    - ancestry-check' "apply nao depende de ancestry-check (gate)"
 want 'CI_COMMIT_BRANCH == "production"' "production branch nao esta hardcoded em apply/workflow"
 
+want '$CI_PIPELINE_SOURCE != "trigger"' "plan/apply devem excluir source=trigger (ex.: preview-pages cross-project) para nao rodar tofu plan/apply em pipelines disparadas por trigger"
+want '$CI_PIPELINE_SOURCE != "pipeline"' "plan/apply devem excluir source=pipeline (downstream/parent-child) pelo mesmo motivo"
+
+want '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH' "plan deve continuar rodando no branch default (ancora de branch preservada, sem sobre-exclusao)"
+
 echo "PASS: ops facade wiring"

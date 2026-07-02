@@ -51,6 +51,7 @@ include:
 
 trigger_preview:
   extends: .pages_trigger
+  allow_failure: true
   needs:
     - job: $[[ inputs.build_job ]]
       artifacts: true
@@ -75,6 +76,7 @@ stop_preview:
     - !reference [.pages_trigger, rules]
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
       when: manual
+      allow_failure: true
   variables:
     GIT_STRATEGY: none
     PREVIEW_TRIGGER_ACTION: stop

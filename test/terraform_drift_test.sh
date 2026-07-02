@@ -17,6 +17,7 @@ want 'plan -detailed-exitcode' "plan does not use detailed exit codes, drift wou
 want '-lock=false' "scheduled plan must not hold the state lock"
 want '$CI_PIPELINE_SOURCE == "schedule" && $DRIFT_CHECK == "1"' "job is not gated to DRIFT_CHECK schedules"
 want '$CI_COMMIT_BRANCH == "production" && $CI_PIPELINE_SOURCE != "trigger"' "drift must run on the production (applied) branch, not main (main is always ahead under deploy-by-promotion and would false-positive, blocking the promotion)"
+want '$CI_PIPELINE_SOURCE != "pipeline"' "drift must also exclude source=pipeline (downstream/parent-child) so a cross-project dispatch targeting production does not run tofu plan (same class as the trigger exclusion)"
 want 'SOPS_AGE_KEY="$AGE_KEY"' "job does not decrypt the SOPS env file"
 want 'action: prepare' "environment must use prepare to avoid fake deployment records"
 
