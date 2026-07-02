@@ -22,6 +22,8 @@ preview:
   environment:
     name: production
   rules:
+    - if: $PREVIEW_KIND == "pages"
+      when: never
     - if: $PREVIEW_ACTION == "deploy"
     - if: $PREVIEW_ACTION == "stop"
     - if: $PREVIEW_ACTION == "sweep"

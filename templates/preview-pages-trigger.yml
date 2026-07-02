@@ -1,0 +1,82 @@
+# Per-MR preview for static sites — trigger side (runs in the SITE repo).
+#
+# Thin wrapper over `eiseron preview pages-trigger` (eiseron_automation): seals
+# the built dist and fires the deployer's pipeline trigger. The MR pipeline
+# holds no Cloudflare token — the deployer (-ops) does. See preview-pages-deploy.
+#
+# Requires (unprotected, so they reach MR branches) on the site project:
+#   PREVIEW_DEPLOYER_PROJECT        full path of the -ops deployer repo
+#   PREVIEW_DEPLOYER_TRIGGER_TOKEN  pipeline trigger token of the deployer
+# and a build job (earlier stage) that publishes dist_dir as an artifact.
+#
+# Usage in a consumer .gitlab-ci.yml:
+#   include:
+#     - project: eiseron/stack/ci
+#       file: /templates/preview-pages-trigger.yml
+#       ref: v0.9.0
+#       inputs:
+#         pages_project: afinados-site
+#         dist_dir: .vitepress/dist
+#         build_job: build
+#   stages: [build, deploy]
+spec:
+  inputs:
+    pages_project:
+      description: "Cloudflare Pages project name (the *.pages.dev host prefix)."
+    dist_dir:
+      description: "Built static output directory the deployer deploys."
+    build_job:
+      default: "build"
+      description: "Name of the build job whose dist_dir artifact this needs."
+    preview_stage:
+      default: "deploy"
+      description: "Stage the trigger_preview / stop_preview jobs run in (the consumer must declare it)."
+    auto_stop_in:
+      default: "7 days"
+      description: "Idle time after which GitLab auto-stops (and tears down) the preview."
+---
+.pages_trigger:
+  stage: $[[ inputs.preview_stage ]]
+  image:
+    name: $STACK_GEM_RUNTIME_IMAGE
+  before_script: []
+  rules:
+    - if: $PREVIEW_DEPLOYER_PROJECT == null || $PREVIEW_DEPLOYER_PROJECT == ""
+      when: never
+    - if: $PREVIEW_DEPLOYER_TRIGGER_TOKEN == null || $PREVIEW_DEPLOYER_TRIGGER_TOKEN == ""
+      when: never
+
+trigger_preview:
+  extends: .pages_trigger
+  needs:
+    - job: $[[ inputs.build_job ]]
+      artifacts: true
+  rules:
+    - !reference [.pages_trigger, rules]
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  variables:
+    PREVIEW_DIST_DIR: "$[[ inputs.dist_dir ]]"
+    PREVIEW_TRIGGER_ACTION: deploy
+  script:
+    - eiseron preview pages-trigger
+  environment:
+    name: preview/$CI_COMMIT_REF_SLUG
+    url: https://mr$CI_MERGE_REQUEST_IID.$[[ inputs.pages_project ]].pages.dev
+    on_stop: stop_preview
+    auto_stop_in: $[[ inputs.auto_stop_in ]]
+
+stop_preview:
+  extends: .pages_trigger
+  needs: []
+  rules:
+    - !reference [.pages_trigger, rules]
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      when: manual
+  variables:
+    GIT_STRATEGY: none
+    PREVIEW_TRIGGER_ACTION: stop
+  script:
+    - eiseron preview pages-trigger
+  environment:
+    name: preview/$CI_COMMIT_REF_SLUG
+    action: stop

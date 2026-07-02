@@ -1,0 +1,61 @@
+# Per-MR preview for static sites — deployer side (runs in the -ops repo).
+#
+# Thin wrapper over `eiseron preview dispatch` (eiseron_automation), which for
+# PREVIEW_KIND=pages downloads the sealed dist and runs wrangler WITHOUT
+# building, so the MR's untrusted build never runs alongside the token. Bound to
+# environment: production so it — and only it — gets the protected token. Node
+# is installed for wrangler; the gem-runtime base is Debian (GNU tar) so the
+# sealed-tarball validation confines absolute/.. paths.
+#
+# Requires on the deployer (-ops) project, protected + environment_scope=production:
+#   CLOUDFLARE_PAGES_PREVIEW_TOKEN  Cloudflare API token scoped to "Pages Write"
+#   PREVIEW_PAGES_PROJECT           the Cloudflare Pages project to deploy to
+#   PREVIEW_SITE_PROJECT            the site repo path to pull the sealed dist from
+#
+# Usage in the -ops .gitlab-ci.yml:
+#   include:
+#     - project: eiseron/stack/ci
+#       file: /templates/preview-pages-deploy.yml
+#       ref: v0.9.0
+#       inputs:
+#         account_id: b406da57022f7381e45749bddbee7f8a
+#   stages: [preview]
+spec:
+  inputs:
+    account_id:
+      description: "Cloudflare account id. Not secret; used by wrangler and the cleanup API."
+    preview_stage:
+      default: "preview"
+      description: "Stage the deployer job runs in (the consumer must declare it)."
+    node_setup_url:
+      default: "https://deb.nodesource.com/setup_20.x"
+      description: "NodeSource setup script; installs a wrangler-compatible Node on the gem-runtime base."
+    preview_timeout:
+      default: "10 minutes"
+      description: "Max wall-clock for a single preview download + deploy."
+---
+preview_pages:
+  stage: $[[ inputs.preview_stage ]]
+  timeout: $[[ inputs.preview_timeout ]]
+  needs: []
+  image:
+    name: $STACK_GEM_RUNTIME_IMAGE
+  environment:
+    name: production
+  variables:
+    GIT_STRATEGY: none
+    CLOUDFLARE_API_TOKEN: "$CLOUDFLARE_PAGES_PREVIEW_TOKEN"
+    CLOUDFLARE_ACCOUNT_ID: "$[[ inputs.account_id ]]"
+  rules:
+    - if: $PREVIEW_KIND != "pages"
+      when: never
+    - if: $CLOUDFLARE_PAGES_PREVIEW_TOKEN == null || $CLOUDFLARE_PAGES_PREVIEW_TOKEN == ""
+      when: never
+    - if: $PREVIEW_ACTION == "deploy"
+    - if: $PREVIEW_ACTION == "stop"
+  before_script:
+    - apt-get update -qq
+    - curl -fsSL "$[[ inputs.node_setup_url ]]" | bash - >/dev/null
+    - apt-get install -y -qq nodejs >/dev/null
+  script:
+    - eiseron preview dispatch
