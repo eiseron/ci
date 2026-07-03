@@ -58,25 +58,10 @@ prod-observability-deploy:
     - install -m 600 "$PROD_SSH_PRIVATE_KEY" ~/.ssh/prod_deploy_key
     - ssh-add ~/.ssh/prod_deploy_key
     - printf 'Host *\n  StrictHostKeyChecking accept-new\n' > ~/.ssh/config
+    - gem install specific_install -v "$STACK_SPECIFIC_INSTALL_VERSION" --no-document
+    - gem specific_install "$STACK_AUTOMATION_REPO" -b "$STACK_AUTOMATION_SHA"
   script:
-    - kamal deploy --skip-push --version="$CI_COMMIT_SHORT_SHA"
-    - kamal accessory reboot node-exporter --version="$CI_COMMIT_SHORT_SHA"
-    - kamal accessory reboot cadvisor --version="$CI_COMMIT_SHORT_SHA"
-    - kamal accessory reboot collector --version="$CI_COMMIT_SHORT_SHA"
-    - |
-      if [ -n "${OBSERVABILITY_OTLP_BASIC:-}" ] && [ -n "${OBSERVABILITY_HOST:-}" ]; then
-        echo "== verificando ingestao de metricas no OpenObserve =="
-        sleep 75
-        code=$(curl -sS --max-time 25 -o /tmp/streams.json -w '%{http_code}' \
-          -H "Authorization: Basic ${OBSERVABILITY_OTLP_BASIC}" \
-          "https://${OBSERVABILITY_HOST}/api/${OBSERVABILITY_OTLP_ORG:-default}/streams" || echo "000")
-        echo "HTTP ${code} — streams no OpenObserve (org default):"
-        if [ "${code}" = "200" ]; then head -c 3000 /tmp/streams.json; echo; else echo "WARN: verificacao retornou ${code} (deploy nao falha por isso)"; fi
-        echo "== logs recentes do collector (diagnostico de ingestao; auth redigida) =="
-        kamal accessory logs collector --lines 150 2>&1 | sed -E 's#Basic [A-Za-z0-9+/=]+#Basic [REDACTED]#g; s#(Authorization|authorization)[^A-Za-z0-9]+[^ ]+#\1 [REDACTED]#g' | tail -80 || echo "WARN: nao consegui puxar os logs do collector"
-      else
-        echo "SKIP: OBSERVABILITY_OTLP_BASIC ou OBSERVABILITY_HOST ausente — verificacao de ingestao pulada"
-      fi
+    - eiseron observability deploy
   rules:
     - if: $CI_COMMIT_BRANCH == "production" && $CI_PIPELINE_SOURCE != "schedule"
       when: manual
