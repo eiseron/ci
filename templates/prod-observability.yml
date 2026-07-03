@@ -72,6 +72,8 @@ prod-observability-deploy:
           "https://${OBSERVABILITY_HOST}/api/${OBSERVABILITY_OTLP_ORG:-default}/streams" || echo "000")
         echo "HTTP ${code} — streams no OpenObserve (org default):"
         if [ "${code}" = "200" ]; then head -c 3000 /tmp/streams.json; echo; else echo "WARN: verificacao retornou ${code} (deploy nao falha por isso)"; fi
+        echo "== logs recentes do collector (diagnostico de ingestao; auth redigida) =="
+        kamal accessory logs collector --lines 150 2>&1 | sed -E 's#Basic [A-Za-z0-9+/=]+#Basic [REDACTED]#g; s#(Authorization|authorization)[^A-Za-z0-9]+[^ ]+#\1 [REDACTED]#g' | tail -80 || echo "WARN: nao consegui puxar os logs do collector"
       else
         echo "SKIP: OBSERVABILITY_OTLP_BASIC ou OBSERVABILITY_HOST ausente — verificacao de ingestao pulada"
       fi
