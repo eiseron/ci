@@ -1,0 +1,66 @@
+spec:
+  inputs:
+    deploy_stage:
+      default: "observability"
+      description: "Pipeline stage for the observability build + deploy jobs (the consumer must declare it)."
+---
+include:
+  - local: /lock.yml
+
+prod-observability-build:
+  stage: $[[ inputs.deploy_stage ]]
+  needs: []
+  image:
+    name: gcr.io/kaniko-project/executor:v1.21.1-debug
+    entrypoint: [""]
+  tags:
+    - self-hosted
+  environment:
+    name: production
+  resource_group: production
+  variables:
+    GIT_STRATEGY: none
+    DOCKER_CONFIG: "/kaniko/.docker"
+  before_script: []
+  script:
+    - AUTH_B64="$(printf 'gitlab-ci-token:%s' "$CI_JOB_TOKEN" | base64 | tr -d '\n')"
+    - mkdir -p "$DOCKER_CONFIG"
+    - echo "{\"auths\":{\"$CI_REGISTRY\":{\"auth\":\"$AUTH_B64\"}}}" > "$DOCKER_CONFIG/config.json"
+    - >
+      /kaniko/executor
+      --context "git://gitlab.com/eiseron/stack/provisioning.git#refs/tags/$STACK_PROVISIONING_REF"
+      --context-sub-path "kamal/observability"
+      --dockerfile "Dockerfile"
+      --destination "$CI_REGISTRY_IMAGE/observability:$CI_COMMIT_SHORT_SHA"
+      --push-retry=3
+  rules:
+    - if: $CI_COMMIT_BRANCH == "production" && $CI_PIPELINE_SOURCE != "schedule"
+
+prod-observability-deploy:
+  stage: $[[ inputs.deploy_stage ]]
+  needs:
+    - job: prod-observability-build
+  image:
+    name: $STACK_OPS_IMAGE
+  tags:
+    - self-hosted
+  environment:
+    name: production
+  resource_group: production
+  variables:
+    GIT_STRATEGY: none
+    OBSERVABILITY_IMAGE: "$CI_PROJECT_PATH/observability"
+  before_script:
+    - git clone "$STACK_PROVISIONING_REPO" /tmp/provisioning && git -C /tmp/provisioning checkout "$STACK_PROVISIONING_SHA"
+    - cp -r /tmp/provisioning/kamal/observability/. .
+    - eval "$(ssh-agent -s)"
+    - install -d -m 700 ~/.ssh
+    - install -m 600 "$PROD_SSH_PRIVATE_KEY" ~/.ssh/prod_deploy_key
+    - ssh-add ~/.ssh/prod_deploy_key
+    - printf 'Host *\n  StrictHostKeyChecking accept-new\n' > ~/.ssh/config
+  script:
+    - kamal deploy --skip-push --version="$CI_COMMIT_SHORT_SHA"
+    - kamal accessory reboot collector --version="$CI_COMMIT_SHORT_SHA"
+  rules:
+    - if: $CI_COMMIT_BRANCH == "production" && $CI_PIPELINE_SOURCE != "schedule"
+      when: manual

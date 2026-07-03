@@ -10,8 +10,8 @@ variables:
   STACK_AWS_SDK_S3_VERSION: 1.226.0
   STACK_AWS_SDK_S3_SHA: e599f431e006ec9b92c61ee0f14d3f658a1f6c8a1d623d2160be927ac958e2bf
   STACK_PROVISIONING_REPO: https://gitlab.com/eiseron/stack/provisioning.git
-  STACK_PROVISIONING_REF: v0.73.0
-  STACK_PROVISIONING_SHA: 8391cc6a373d35d6be53210982a961b7972cef81
+  STACK_PROVISIONING_REF: v0.77.0
+  STACK_PROVISIONING_SHA: 5dc71e4edff05503195243ed99ca99bb72a2121c
   STACK_IAC_IMAGE: registry.gitlab.com/eiseron/stack/public-image-bases/iac@sha256:4f9c1ff578e14509efeb5d8d9b74cd41b8a6b13d26414e258dba8740f527918c
   STACK_IAC_TAG: v0.1.35
   STACK_OPS_IMAGE: registry.gitlab.com/eiseron/stack/public-image-bases/ops@sha256:bab329452e854875f2be8d505892663bb73a3d876881976952553f8f52d6da5a

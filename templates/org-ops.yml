@@ -51,6 +51,13 @@ spec:
     error_monitoring_stage:
       default: "error-monitoring"
       description: "Stage declared for the error monitoring deploy job (must be in stages)."
+    observability:
+      type: boolean
+      default: false
+      description: "Pulls in the stack/ci prod-observability template (manual build + deploy jobs for the shared observability backend)."
+    observability_stage:
+      default: "observability"
+      description: "Stage declared for the observability deploy job (must be in stages)."
 ---
 
 include:
@@ -70,6 +77,11 @@ include:
     inputs:
       tenant_stage: $[[ inputs.error_monitoring_tenant_stage ]]
       deploy_stage: $[[ inputs.error_monitoring_stage ]]
+  - local: /templates/prod-observability.yml
+    rules:
+      - if: '"$[[ inputs.observability ]]" == "true"'
+    inputs:
+      deploy_stage: $[[ inputs.observability_stage ]]
 
 stages:
   - lint
@@ -85,6 +97,7 @@ stages:
   - platform
   - error-monitoring-tenant
   - error-monitoring
+  - observability
   - drift
 
 workflow:
