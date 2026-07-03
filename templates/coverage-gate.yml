@@ -1,0 +1,21 @@
+spec:
+  inputs:
+    test_job_name:
+      default: "test"
+      description: "Name of the CI job that extracts coverage (must have a 'coverage:' regex configured)."
+      regex: /^[a-zA-Z0-9_-]+$/
+---
+coverage-gate:
+  stage: test
+  timeout: 2 minutes
+  needs:
+    - $[[ inputs.test_job_name ]]
+  image:
+    name: $STACK_GEM_RUNTIME_IMAGE
+  variables:
+    GIT_STRATEGY: none
+  before_script: []
+  script:
+    - eiseron ci coverage-gate --test-job "$[[ inputs.test_job_name ]]"
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"

@@ -3,6 +3,9 @@ spec:
     app_name:
       default: "app"
       description: "OTP app name; the template derives the test database as <app_name>_test."
+    test_script:
+      default: "mix coveralls.html"
+      description: "Command to run the test suite with ExCoveralls coverage. Defaults to 'mix coveralls.html' which prints the text summary (matched by the coverage regex) and writes HTML reports to cover/. Override with a custom alias when the project uses a non-default coveralls task."
 ---
 include:
   - local: /lock.yml
@@ -60,10 +63,16 @@ test:
   before_script:
     - mix deps.get
     - until pg_isready -h postgres -U postgres -t 1; do sleep 1; done
+  coverage: '/\s+(\d+\.\d+)% \| Total/'
+  artifacts:
+    paths:
+      - cover/
+    expire_in: 7 days
+    when: always
   script:
     - mix ecto.create
     - mix ecto.migrate
-    - mix test
+    - $[[ inputs.test_script ]]
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
