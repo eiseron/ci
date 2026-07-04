@@ -37,7 +37,7 @@ want "PREVIEW_TRIGGER_KIND: mr" "no PREVIEW_TRIGGER_KIND=mr is set on any trigge
 want "PREVIEW_TRIGGER_KIND: main" "deploy_main does not set PREVIEW_TRIGGER_KIND=main"
 want "PREVIEW_TRIGGER_REF: \$CI_COMMIT_REF_SLUG" "deploy_preview/stop_preview does not propagate the ref slug"
 want 'PREVIEW_TRIGGER_REF: $[[ inputs.main_environment_name ]]' "deploy_main does not propagate main as the ref"
-want "PREVIEW_TRIGGER_MR_IID: \$CI_MERGE_REQUEST_IID" "deploy_preview does not propagate the MR IID"
+want_count "PREVIEW_TRIGGER_MR_IID: \$CI_MERGE_REQUEST_IID" 2 "PREVIEW_TRIGGER_MR_IID must appear in both deploy_preview and stop_preview"
 
 want 'auto_stop_in: $[[ inputs.preview_auto_stop_in ]]' "deploy_preview does not parameterize auto_stop_in"
 want "on_stop: stop_preview" "deploy_preview does not wire on_stop"

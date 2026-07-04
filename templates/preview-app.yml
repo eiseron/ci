@@ -153,6 +153,7 @@ stop_preview:
     PREVIEW_TRIGGER_ACTION: stop
     PREVIEW_TRIGGER_KIND: mr
     PREVIEW_TRIGGER_REF: $CI_COMMIT_REF_SLUG
+    PREVIEW_TRIGGER_MR_IID: $CI_MERGE_REQUEST_IID
   script:
     - eiseron preview trigger
   environment:
