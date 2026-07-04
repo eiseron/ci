@@ -63,7 +63,7 @@ test:
   before_script:
     - mix deps.get
     - until pg_isready -h postgres -U postgres -t 1; do sleep 1; done
-  coverage: '/\s+(\d+\.\d+)% \| Total/'
+  coverage: '/\[TOTAL\]\s+(\d+\.\d+)%/'
   artifacts:
     paths:
       - cover/
