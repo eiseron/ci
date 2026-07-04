@@ -60,6 +60,7 @@ prod-observability-deploy:
     - printf 'Host *\n  StrictHostKeyChecking accept-new\n' > ~/.ssh/config
     - gem install specific_install -v "$STACK_SPECIFIC_INSTALL_VERSION" --no-document
     - gem specific_install "$STACK_AUTOMATION_REPO" -b "$STACK_AUTOMATION_SHA"
+    - export PATH="$(ruby -e 'print Gem.user_dir')/bin:$PATH"
   script:
     - eiseron observability deploy
   rules:

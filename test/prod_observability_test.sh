@@ -29,6 +29,7 @@ want "kamal/observability/." "the canonical kamal/observability manifest is not 
 want '$STACK_PROVISIONING_REPO' "provisioning is not cloned for the canonical manifest"
 want "eiseron observability deploy" "deploy does not delegate to the gem command (deploy + root reset + accessory reboot + verify live in eiseron_automation now)"
 want 'gem specific_install "$STACK_AUTOMATION_REPO" -b "$STACK_AUTOMATION_SHA"' "deploy does not install the pinned eiseron gem before invoking it"
+want "Gem.user_dir')/bin:\$PATH" "deploy does not add the user gem bin to PATH (the eiseron binstub installs there and would be command-not-found)"
 want_absent "kamal accessory logs collector" "the inline shell diagnostic must be gone (moved into the gem command)"
 want '$CI_COMMIT_BRANCH == "production"' "observability jobs are not gated to the production branch"
 want "when: manual" "deploy job is not manual"
