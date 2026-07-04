@@ -115,7 +115,18 @@ variables:
 
 apply:
   rules:
-    - if: $CI_COMMIT_BRANCH == "production" && $CI_PIPELINE_SOURCE != "schedule" && $TF_STATE_RM == null
+    - if: $CI_COMMIT_BRANCH == "production" && $CI_PIPELINE_SOURCE != "schedule" && $TF_STATE_RM == null && $IMPORT_OTP_IDP == null
+
+import-otp-idp:
+  stage: apply
+  needs: []
+  script:
+    - eiseron cf import-otp-idp
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "web" && $CI_COMMIT_BRANCH == "production" && $IMPORT_OTP_IDP
+      when: manual
+  environment:
+    name: production
 
 rotate-tokens:
   stage: rotate
