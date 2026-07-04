@@ -62,6 +62,7 @@ prod-observability-deploy:
     - gem specific_install "$STACK_AUTOMATION_REPO" -b "$STACK_AUTOMATION_SHA"
     - export PATH="$(ruby -e 'print Gem.user_dir')/bin:$PATH"
   script:
+    - if [ "${OBSERVABILITY_FORCE_UNLOCK:-}" = "1" ]; then kamal lock release || true; fi
     - eiseron observability deploy
   rules:
     - if: $CI_COMMIT_BRANCH == "production" && $CI_PIPELINE_SOURCE != "schedule"
