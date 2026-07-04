@@ -318,6 +318,7 @@ runner-provision:
         exit 0
       fi
     - chmod 600 "$ANSIBLE_SSH_PRIVATE_KEY"
+    - ansible-galaxy collection install --force -r "$CI_PROJECT_DIR/runner/ansible/requirements.yml"
     - >
       ANSIBLE_ROLES_PATH="$CI_PROJECT_DIR/runner/ansible/roles"
       ANSIBLE_INVENTORY="$CI_PROJECT_DIR/runner/ansible/inventory/production.yml"

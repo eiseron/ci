@@ -49,6 +49,7 @@ want 'PREVIEW_HOSTNAME: $[[ inputs.preview_hosts ]]' "preview-provision nao usa 
 want 'KEYSERVER_HOSTNAME: $[[ inputs.keyserver_hosts ]]' "keyserver-provision nao usa parallel:matrix sobre keyserver_hosts"
 want 'PROD_HOSTNAME: $[[ inputs.prod_hosts ]]' "prod-provision nao usa parallel:matrix sobre prod_hosts"
 
+want 'ansible-galaxy collection install --force -r "$CI_PROJECT_DIR/runner/ansible/requirements.yml"' "runner-provision nao instala a collection antes do playbook"
 want 'if [ -z "$RUNNER_HOSTNAME" ]' "runner-provision sem sentinel de host vazio (matrix com default [""] entraria no caminho ativo)"
 want 'if [ -z "$PREVIEW_HOSTNAME" ]' "preview-provision sem sentinel de host vazio"
 want 'if [ -z "$KEYSERVER_HOSTNAME" ]' "keyserver-provision sem sentinel de host vazio"
