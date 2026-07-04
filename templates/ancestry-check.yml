@@ -13,7 +13,7 @@ ancestry-check:
     GIT_DEPTH: "0"
   script:
     - git fetch origin main
-    - 'git diff --quiet HEAD origin/main || { echo "branch content differs from the reviewed trunk; promote only via a main to production MR"; exit 1; }'
+    - 'git merge-base --is-ancestor HEAD origin/main || git diff --quiet HEAD origin/main || { echo "branch is ahead of or diverged from the reviewed trunk (has commits not on main); promote only via a main to production MR"; exit 1; }'
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "production"
     - if: $CI_COMMIT_BRANCH == "production" && $CI_PIPELINE_SOURCE != "schedule"
