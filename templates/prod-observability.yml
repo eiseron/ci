@@ -65,4 +65,3 @@ prod-observability-deploy:
     - eiseron observability deploy
   rules:
     - if: $CI_COMMIT_BRANCH == "production" && $CI_PIPELINE_SOURCE != "schedule"
-      when: manual

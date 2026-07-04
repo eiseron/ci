@@ -32,7 +32,7 @@ want 'gem specific_install "$STACK_AUTOMATION_REPO" -b "$STACK_AUTOMATION_SHA"' 
 want "Gem.user_dir')/bin:\$PATH" "deploy does not add the user gem bin to PATH (the eiseron binstub installs there and would be command-not-found)"
 want_absent "kamal accessory logs collector" "the inline shell diagnostic must be gone (moved into the gem command)"
 want '$CI_COMMIT_BRANCH == "production"' "observability jobs are not gated to the production branch"
-want "when: manual" "deploy job is not manual"
+want_absent "when: manual" "deploy job must not be manual (eiseron observability deploy is idempotent)"
 want "name: production" "jobs do not run under the production environment"
 want "resource_group: production" "jobs are not serialized via the production resource_group"
 
