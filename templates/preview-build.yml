@@ -100,7 +100,7 @@ deploy_preview:
       PROJECT_ENC=$(printf '%s' "$PREVIEW_DEPLOYER_PROJECT" | sed 's|/|%2F|g')
       RESP=$(curl --fail --silent --show-error -X POST \
         -F "token=$PREVIEW_DEPLOYER_TRIGGER_TOKEN" \
-        -F "ref=main" \
+        -F "ref=production" \
         -F "variables[PREVIEW_MR_IID]=$CI_MERGE_REQUEST_IID" \
         -F "variables[PREVIEW_APP_IMAGE]=$CI_REGISTRY_IMAGE/preview:$CI_COMMIT_REF_SLUG" \
         -F "variables[PREVIEW_ACTION]=deploy" \
@@ -130,7 +130,7 @@ stop_preview:
       PROJECT_ENC=$(printf '%s' "$PREVIEW_DEPLOYER_PROJECT" | sed 's|/|%2F|g')
       RESP=$(curl --fail --silent --show-error -X POST \
         -F "token=$PREVIEW_DEPLOYER_TRIGGER_TOKEN" \
-        -F "ref=main" \
+        -F "ref=production" \
         -F "variables[PREVIEW_MR_IID]=$CI_MERGE_REQUEST_IID" \
         -F "variables[PREVIEW_ACTION]=stop" \
         "$CI_API_V4_URL/projects/$PROJECT_ENC/trigger/pipeline")
