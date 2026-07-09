@@ -18,8 +18,8 @@ want_absent() {
 
 want 'local: /templates/ops.yml' "facade nao compoe ops.yml"
 want 'local: /templates/prod-platform.yml' "facade nao compoe prod-platform.yml"
-want 'local: /templates/prod-error-monitoring.yml' "facade nao compoe prod-error-monitoring.yml"
-want '"$[[ inputs.error_monitoring ]]" == "true"' "prod-error-monitoring nao e gateado pelo input error_monitoring"
+want_absent 'prod-error-monitoring.yml' "facade ainda compoe prod-error-monitoring apos remocao do glitchtip"
+want_absent 'error_monitoring' "input error_monitoring ainda presente apos remocao do glitchtip"
 want 'local: /templates/prod-observability.yml' "facade nao compoe prod-observability.yml"
 want '"$[[ inputs.observability ]]" == "true"' "prod-observability nao e gateado pelo input observability"
 

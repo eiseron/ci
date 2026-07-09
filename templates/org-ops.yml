@@ -41,16 +41,6 @@ spec:
       type: string
       default: ""
       description: "Comma-separated TF addresses refreshed by rotate-sa-tokens on ROTATE_SA=1 schedules. Empty disables the job."
-    error_monitoring:
-      type: boolean
-      default: false
-      description: "Pulls in the stack/ci prod-error-monitoring template (manual tenant + deploy jobs for the shared error monitoring service)."
-    error_monitoring_tenant_stage:
-      default: "error-monitoring-tenant"
-      description: "Stage declared for the error monitoring tenant job (must be in stages)."
-    error_monitoring_stage:
-      default: "error-monitoring"
-      description: "Stage declared for the error monitoring deploy job (must be in stages)."
     observability:
       type: boolean
       default: false
@@ -71,12 +61,6 @@ include:
       - if: '"$[[ inputs.prod_platform ]]" == "true"'
     inputs:
       platform_stage: $[[ inputs.prod_platform_stage ]]
-  - local: /templates/prod-error-monitoring.yml
-    rules:
-      - if: '"$[[ inputs.error_monitoring ]]" == "true"'
-    inputs:
-      tenant_stage: $[[ inputs.error_monitoring_tenant_stage ]]
-      deploy_stage: $[[ inputs.error_monitoring_stage ]]
   - local: /templates/prod-observability.yml
     rules:
       - if: '"$[[ inputs.observability ]]" == "true"'
@@ -95,8 +79,6 @@ stages:
   - keyserver-provision
   - prod-provision
   - platform
-  - error-monitoring-tenant
-  - error-monitoring
   - observability
   - drift
 
