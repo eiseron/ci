@@ -2,18 +2,18 @@ spec:
   inputs:
     chdir:
       default: "."
-      description: "Directory of the Terraform module/config to validate."
+      description: "Directory of the Terraform/OpenTofu module to test."
     name:
       default: ""
       description: "Suffix for the job name so the template can be included once per module (e.g. -product)."
     stage:
-      default: "validate"
+      default: "test"
       description: "Pipeline stage for the job (consumer must declare it)."
 ---
 include:
   - local: /lock.yml
 
-terraform-validate$[[ inputs.name ]]:
+tofu-test$[[ inputs.name ]]:
   stage: $[[ inputs.stage ]]
   image:
     name: $STACK_IAC_IMAGE
@@ -23,7 +23,6 @@ terraform-validate$[[ inputs.name ]]:
   cache: []
   script:
     - tofu -chdir="$[[ inputs.chdir ]]" init -backend=false -input=false
-    - tofu -chdir="$[[ inputs.chdir ]]" fmt -check -recursive
-    - tofu -chdir="$[[ inputs.chdir ]]" validate
+    - tofu -chdir="$[[ inputs.chdir ]]" test
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
