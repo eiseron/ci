@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-template="templates/terraform-validate.yml"
+template="templates/tofu-test.yml"
 
 fail() {
   echo "FAIL: $1"
@@ -15,7 +15,6 @@ want() {
 want "type: array" "chdirs input is not typed as an array"
 want "parallel:" "job does not use parallel:"
 want "- CHDIR: \$[[ inputs.chdirs ]]" "matrix does not iterate over inputs.chdirs"
-want 'tofu -chdir="$CHDIR" validate' "validate step is missing"
-want 'tofu -chdir="$CHDIR" fmt -check -recursive' "fmt check step is missing"
+want 'tofu -chdir="$CHDIR" test' "test step is missing"
 
-echo "PASS: terraform-validate matrix wiring"
+echo "PASS: tofu-test matrix wiring"

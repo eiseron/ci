@@ -60,17 +60,20 @@ Inputs:
 ## templates/terraform-validate.yml
 
 `terraform-validate` job — `init -backend=false` + `fmt -check -recursive` +
-`validate` for an OpenTofu module, on the shared `iac` image
+`validate` for one or more OpenTofu modules, on the shared `iac` image
 (which ships the `tofu` binary; its entrypoint is overridden so the shell
-runs the script).
+runs the script). One `parallel: matrix:` job per entry in `chdirs`, included
+once regardless of how many modules there are.
 
 ```yaml
 include:
   - project: eiseron/stack/ci
     file: /templates/terraform-validate.yml
-    ref: v0.1.20
+    ref: v0.9.47
     inputs:
-      chdir: modules/preview_host
+      chdirs:
+        - modules/preview_host
+        - modules/product
 
 stages:
   - validate
@@ -80,25 +83,27 @@ Inputs:
 
 | input | default | purpose |
 |-------|---------|---------|
-| `chdir` | `.` | directory of the OpenTofu module/config to validate |
-| `image_tag` | `v0.1.16` | `public-image-bases/iac` tag the job runs on |
+| `chdirs` | *(required)* | array of OpenTofu module/config directories to validate, one job per entry |
 | `stage` | `validate` | pipeline stage for the job (the consumer must declare it) |
 
 ## templates/tofu-test.yml
 
-`tofu-test` job — `init -backend=false` + `tofu test` for an OpenTofu module,
-on the same `iac` image as `terraform-validate`. Runs any `*.tftest.hcl`
-files in the module directory; modules with no test files pass trivially
-(0 run blocks executed). Pairs with `templates/tofu-coverage.yml` +
+`tofu-test` job — `init -backend=false` + `tofu test` for one or more OpenTofu
+modules, on the same `iac` image as `terraform-validate`. Runs any
+`*.tftest.hcl` files in each module directory; modules with no test files
+pass trivially (0 run blocks executed). One `parallel: matrix:` job per entry
+in `chdirs`. Pairs with `templates/tofu-coverage.yml` +
 `templates/coverage-gate.yml` for a hard gate on module test coverage.
 
 ```yaml
 include:
   - project: eiseron/stack/ci
     file: /templates/tofu-test.yml
-    ref: v0.1.21
+    ref: v0.9.47
     inputs:
-      chdir: modules/product
+      chdirs:
+        - modules/product
+        - modules/product_instance
 
 stages:
   - test
@@ -108,8 +113,7 @@ Inputs:
 
 | input | default | purpose |
 |-------|---------|---------|
-| `chdir` | `.` | directory of the OpenTofu module to test |
-| `name` | `""` | job-name suffix, so the template can be included once per module |
+| `chdirs` | *(required)* | array of OpenTofu module directories to test, one job per entry |
 | `stage` | `test` | pipeline stage for the job (the consumer must declare it) |
 
 ## templates/lock-smoke.yml

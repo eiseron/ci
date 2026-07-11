@@ -1,11 +1,8 @@
 spec:
   inputs:
-    chdir:
-      default: "."
-      description: "Directory of the Terraform/OpenTofu module to test."
-    name:
-      default: ""
-      description: "Suffix for the job name so the template can be included once per module (e.g. -product)."
+    chdirs:
+      type: array
+      description: "Directories of the Terraform/OpenTofu modules to test, one job per entry."
     stage:
       default: "test"
       description: "Pipeline stage for the job (consumer must declare it)."
@@ -13,7 +10,7 @@ spec:
 include:
   - local: /lock.yml
 
-tofu-test$[[ inputs.name ]]:
+tofu-test:
   stage: $[[ inputs.stage ]]
   image:
     name: $STACK_IAC_IMAGE
@@ -21,8 +18,11 @@ tofu-test$[[ inputs.name ]]:
   tags:
     - self-hosted
   cache: []
+  parallel:
+    matrix:
+      - CHDIR: $[[ inputs.chdirs ]]
   script:
-    - tofu -chdir="$[[ inputs.chdir ]]" init -backend=false -input=false
-    - tofu -chdir="$[[ inputs.chdir ]]" test
+    - tofu -chdir="$CHDIR" init -backend=false -input=false
+    - tofu -chdir="$CHDIR" test
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
