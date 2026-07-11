@@ -62,28 +62,26 @@ Inputs:
 `terraform-validate` job — `init -backend=false` + `fmt -check -recursive` +
 `validate` for one or more OpenTofu modules, on the shared `iac` image
 (which ships the `tofu` binary; its entrypoint is overridden so the shell
-runs the script). One `parallel: matrix:` job per entry in `matrix`, included
-once regardless of how many modules there are. Each job only runs when its
-`WATCH` path actually changed in the MR — untouched modules don't spin up a
-job at all, so a one-module MR doesn't pay for every module's validate.
+runs the script). One `parallel: matrix:` job per entry in `chdirs`, included
+once regardless of how many modules there are. Each entry is also watched
+for changes: the job only runs when files under it change, so a one-module
+MR doesn't pay for every module's validate.
 
-`CHDIR` and `WATCH` differ for modules validated through a dummy-provider
-fixture (e.g. `prod_platform`): `CHDIR` points at the fixture root so `tofu`
-has concrete provider configs to run against, `WATCH` points at the real
-module directory so a change to the module's own `.tf` files still triggers
-the job even though the fixture directory itself didn't change.
+Modules validated through a dummy-provider fixture (e.g. `prod_platform`,
+whose `chdir` is `modules/prod_platform/examples/validate`) only trigger on
+changes to the fixture directory itself, not the real module's `.tf` files
+one level up. Known, accepted simplification in exchange for not needing a
+second per-entry path.
 
 ```yaml
 include:
   - project: eiseron/stack/ci
     file: /templates/terraform-validate.yml
-    ref: v0.9.49
+    ref: v0.9.50
     inputs:
-      matrix:
-        - CHDIR: modules/preview_host
-          WATCH: modules/preview_host
-        - CHDIR: modules/prod_platform/examples/validate
-          WATCH: modules/prod_platform
+      chdirs:
+        - modules/preview_host
+        - modules/prod_platform/examples/validate
 
 stages:
   - validate
@@ -93,7 +91,7 @@ Inputs:
 
 | input | default | purpose |
 |-------|---------|---------|
-| `matrix` | *(required)* | array of `{CHDIR, WATCH}` pairs, one job per entry |
+| `chdirs` | *(required)* | array of OpenTofu module/config directories to validate, one job per entry |
 | `stage` | `validate` | pipeline stage for the job (the consumer must declare it) |
 
 ## templates/tofu-test.yml
@@ -102,7 +100,7 @@ Inputs:
 modules, on the same `iac` image as `terraform-validate`. Runs any
 `*.tftest.hcl` files in each module directory; modules with no test files
 pass trivially (0 run blocks executed). One `parallel: matrix:` job per entry
-in `matrix`, scoped by `WATCH` the same way as `terraform-validate` (see
+in `chdirs`, scoped by changes the same way as `terraform-validate` (see
 above). Pairs with `templates/tofu-coverage.yml` +
 `templates/coverage-gate.yml` for a hard gate on module test coverage.
 
@@ -110,13 +108,11 @@ above). Pairs with `templates/tofu-coverage.yml` +
 include:
   - project: eiseron/stack/ci
     file: /templates/tofu-test.yml
-    ref: v0.9.49
+    ref: v0.9.50
     inputs:
-      matrix:
-        - CHDIR: modules/product
-          WATCH: modules/product
-        - CHDIR: modules/product_instance
-          WATCH: modules/product_instance
+      chdirs:
+        - modules/product
+        - modules/product_instance
 
 stages:
   - test
@@ -126,7 +122,7 @@ Inputs:
 
 | input | default | purpose |
 |-------|---------|---------|
-| `matrix` | *(required)* | array of `{CHDIR, WATCH}` pairs, one job per entry |
+| `chdirs` | *(required)* | array of OpenTofu module directories to test, one job per entry |
 | `stage` | `test` | pipeline stage for the job (the consumer must declare it) |
 
 ## templates/lock-smoke.yml

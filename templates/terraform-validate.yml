@@ -1,8 +1,8 @@
 spec:
   inputs:
-    matrix:
+    chdirs:
       type: array
-      description: "One entry per module: {CHDIR: directory to run tofu in, WATCH: directory whose changes should trigger the job}."
+      description: "Directories of the Terraform/OpenTofu modules/configs to validate, one job per entry. Each entry is also watched for changes: the job only runs when files under it change."
     stage:
       default: "validate"
       description: "Pipeline stage for the job (consumer must declare it)."
@@ -20,7 +20,8 @@ terraform-validate:
   cache: []
   before_script: []
   parallel:
-    matrix: $[[ inputs.matrix ]]
+    matrix:
+      - CHDIR: $[[ inputs.chdirs ]]
   script:
     - tofu -chdir="$CHDIR" init -backend=false -input=false
     - tofu -chdir="$CHDIR" fmt -check -recursive
@@ -28,4 +29,4 @@ terraform-validate:
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
       changes:
-        - $WATCH/**/*
+        - $CHDIR/**/*
