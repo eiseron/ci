@@ -16,5 +16,6 @@ want "type: array" "chdirs input is not typed as an array"
 want "parallel:" "job does not use parallel:"
 want "- CHDIR: \$[[ inputs.chdirs ]]" "matrix does not iterate over inputs.chdirs"
 want 'tofu -chdir="$CHDIR" test' "test step is missing"
+want "before_script: []" "before_script is not cleared -- consumers with a default: before_script (e.g. ops.yml) leak their secrets/init step in"
 
 echo "PASS: tofu-test matrix wiring"

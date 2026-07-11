@@ -18,6 +18,7 @@ terraform-validate:
   tags:
     - self-hosted
   cache: []
+  before_script: []
   parallel:
     matrix:
       - CHDIR: $[[ inputs.chdirs ]]
