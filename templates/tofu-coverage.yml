@@ -1,0 +1,26 @@
+spec:
+  inputs:
+    modules_dir:
+      default: "modules"
+      description: "Directory containing one subdirectory per module; falls back to treating the repo root as a single module when it doesn't exist."
+    stage:
+      default: "test"
+      description: "Pipeline stage for the job (consumer must declare it)."
+---
+include:
+  - local: /lock.yml
+
+tofu-coverage:
+  stage: $[[ inputs.stage ]]
+  image:
+    name: $STACK_IAC_IMAGE
+    entrypoint: [""]
+  tags:
+    - self-hosted
+  cache: []
+  before_script: []
+  coverage: '/\[TOTAL\]\s+(\d+\.\d+)%/'
+  script:
+    - eiseron ci tofu-coverage --modules-dir "$[[ inputs.modules_dir ]]"
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"

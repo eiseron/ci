@@ -125,6 +125,54 @@ Inputs:
 | `chdirs` | *(required)* | array of OpenTofu module directories to test, one job per entry |
 | `stage` | `test` | pipeline stage for the job (the consumer must declare it) |
 
+## templates/tofu-coverage.yml
+
+`tofu-coverage` job — runs `eiseron ci tofu-coverage`, which counts how many
+subdirectories under `modules_dir` contain at least one `*.tftest.hcl` file
+and prints `[TOTAL] XX.X% (n/m modules)`. Falls back to treating the repo
+root as a single module when `modules_dir` doesn't exist (single-root
+`*-ops` repos). The job's `coverage:` regex extracts that percentage, so
+pairing it with `templates/coverage-gate.yml` (`test_job_name:
+tofu-coverage`) gets a hard gate that blocks an MR from lowering module test
+coverage below the target branch's last successful pipeline, the same
+mechanism already guarding Elixir coverage in afinados/holter.
+`coverage-gate.yml`'s `stage` input defaults to `test` (matching how
+afinados/holter already use it); infra repos that have no `test` stage
+(`provisioning`, `*-ops`) pass their own stage, e.g. `lint`.
+
+```yaml
+include:
+  - project: eiseron/stack/ci
+    file: /templates/tofu-coverage.yml
+    ref: v0.9.51
+    inputs:
+      modules_dir: modules
+      stage: lint
+  - project: eiseron/stack/ci
+    file: /templates/coverage-gate.yml
+    ref: v0.9.51
+    inputs:
+      test_job_name: tofu-coverage
+      stage: lint
+
+stages:
+  - lint
+```
+
+Inputs (`tofu-coverage.yml`):
+
+| input | default | purpose |
+|-------|---------|---------|
+| `modules_dir` | `modules` | directory containing one subdirectory per module |
+| `stage` | `test` | pipeline stage for the job (the consumer must declare it) |
+
+Inputs (`coverage-gate.yml`):
+
+| input | default | purpose |
+|-------|---------|---------|
+| `test_job_name` | `test` | name of the CI job that extracts coverage |
+| `stage` | `test` | pipeline stage for the job (the consumer must declare it) |
+
 ## templates/lock-smoke.yml
 
 `lock-smoke` job — runs on **every MR** and on the default-branch push,

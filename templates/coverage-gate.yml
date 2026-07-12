@@ -4,9 +4,12 @@ spec:
       default: "test"
       description: "Name of the CI job that extracts coverage (must have a 'coverage:' regex configured)."
       regex: '^[a-zA-Z0-9_-]+$'
+    stage:
+      default: "test"
+      description: "Pipeline stage for the job (consumer must declare it)."
 ---
 coverage-gate:
-  stage: test
+  stage: $[[ inputs.stage ]]
   timeout: 2 minutes
   needs:
     - $[[ inputs.test_job_name ]]
