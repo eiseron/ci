@@ -24,6 +24,13 @@ spec:
     db_url_scheme:
       default: "ecto"
       description: "Scheme for the assembled DATABASE_URL (DB_URL_SCHEME); ecto for Phoenix."
+    runtime:
+      default: "kamal"
+      options: ["kamal", "k3s"]
+      description: "Prod deploy runtime (kamal|k3s). Default kamal for back-compat."
+    migrate_cmd:
+      default: "bin/migrate"
+      description: "Container migrate command for the k3s runtime (PROD_MIGRATE_CMD); ignored on kamal."
 ---
 
 include:
@@ -37,6 +44,8 @@ include:
       app_host: $[[ inputs.app_host ]]
       app_port: $[[ inputs.app_port ]]
       app_release_module: $[[ inputs.app_release_module ]]
+      runtime: $[[ inputs.runtime ]]
+      migrate_cmd: $[[ inputs.migrate_cmd ]]
       tenant_slug: $[[ inputs.tenant_slug ]]
       db_url_scheme: $[[ inputs.db_url_scheme ]]
   - local: /templates/preview-dispatch.yml

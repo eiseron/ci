@@ -36,4 +36,29 @@ want "resource_group: production" "deploy job is not serialized via the producti
 want "extends: .notify_telegram_on_failure" "deploy must alert on Telegram on failure (auto-deploys are unattended)"
 want "/templates/notify-telegram.yml" "deploy must include the notify-telegram template that defines the extends target"
 
-echo "PASS: prod-deploy template wiring (thin, inputs-fed, gem-rotated DATABASE_URL)"
+want 'default: "kamal"' "runtime input must default to kamal for back-compat with kamal products"
+want 'options: ["kamal", "k3s"]' "runtime input must be constrained to kamal|k3s"
+want 'PROD_RUNTIME: "$[[ inputs.runtime ]]"' "the runtime selector must reach the job as PROD_RUNTIME"
+want 'if [ "$PROD_RUNTIME" = "k3s" ]; then' "the deploy path must branch on the runtime selector"
+
+want 'PROD_IMAGE: "$[[ inputs.app_image ]]"' "k3s Prod::Deploy needs PROD_IMAGE fed from inputs"
+want 'PROD_MIGRATE_CMD: "$[[ inputs.migrate_cmd ]]"' "k3s Prod::Deploy needs PROD_MIGRATE_CMD fed from inputs"
+want 'base64 -d > ~/.kube/ca.crt' "k3s path must decode PROD_KUBE_CA into the cluster CA"
+want '--server="$PROD_KUBE_HOST"' "k3s KUBECONFIG must point at PROD_KUBE_HOST"
+want '--token="$PROD_KUBE_TOKEN"' "k3s KUBECONFIG must authenticate with PROD_KUBE_TOKEN"
+want 'export KUBECONFIG="$HOME/.kube/config"' "k3s path must export KUBECONFIG for the kubectl Prod::Deploy"
+
+grep -q 'PROD_SSH_PRIVATE_KEY' "$template" ||
+  fail "kamal path must keep the SSH key install (back-compat with kamal products)"
+
+k3s_line=$(grep -n 'PROD_RUNTIME.*=.*"k3s"' "$template" | head -1 | cut -d: -f1)
+ssh_line=$(grep -n 'ssh-add ~/.ssh/prod_deploy_key' "$template" | head -1 | cut -d: -f1)
+[ -n "$k3s_line" ] && [ -n "$ssh_line" ] && [ "$ssh_line" -gt "$k3s_line" ] ||
+  fail "kamal SSH setup must live in the else branch, not run on the k3s path"
+
+kube_line=$(grep -n 'set-credentials prod --token' "$template" | head -1 | cut -d: -f1)
+clone_line=$(grep -n '"$STACK_PROVISIONING_REPO" /tmp/provisioning' "$template" | head -1 | cut -d: -f1)
+[ -n "$kube_line" ] && [ -n "$clone_line" ] && [ "$clone_line" -gt "$kube_line" ] ||
+  fail "k3s path must not clone the kamal config (that belongs to the else branch)"
+
+echo "PASS: prod-deploy template wiring (kamal default + k3s KUBECONFIG path, both inputs-fed)"

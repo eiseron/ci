@@ -1,9 +1,13 @@
 spec:
   inputs:
+    runtime:
+      default: "kamal"
+      options: ["kamal", "k3s"]
+      description: "Prod runtime target. kamal clones the provisioning kamal config and SSHes to PROD_HOST; k3s builds a KUBECONFIG from PROD_KUBE_* and runs the kubectl Prod::Deploy. Default kamal for back-compat."
     app_service:
       description: "kamal service name, consumed by the manifest as APP_SERVICE."
     app_image:
-      description: "Image repository path, consumed by the manifest as APP_IMAGE."
+      description: "Image repository path, consumed by the manifest as APP_IMAGE (kamal) and PROD_IMAGE (k3s)."
     app_host:
       description: "Public app host, consumed by the manifest as APP_HOST."
     app_port:
@@ -11,6 +15,9 @@ spec:
       description: "Container port the app listens on (APP_PORT)."
     app_release_module:
       description: "Elixir release module for the post-deploy migrate hook (APP_RELEASE_MODULE)."
+    migrate_cmd:
+      default: "bin/migrate"
+      description: "Container migrate command for the k3s runtime (PROD_MIGRATE_CMD); ignored on kamal."
     tenant_slug:
       description: "Per-product Postgres role/slug (PROD_TENANT_SLUG); the managed PROD_TENANT_PASSWORD is re-applied idempotently each deploy."
     db_url_scheme:
@@ -37,24 +44,38 @@ prod-deploy:
   resource_group: production
   variables:
     GIT_STRATEGY: none
+    PROD_RUNTIME: "$[[ inputs.runtime ]]"
     APP_SERVICE: "$[[ inputs.app_service ]]"
     APP_IMAGE: "$[[ inputs.app_image ]]"
     APP_HOST: "$[[ inputs.app_host ]]"
     APP_PORT: "$[[ inputs.app_port ]]"
     APP_RELEASE_MODULE: "$[[ inputs.app_release_module ]]"
+    PROD_IMAGE: "$[[ inputs.app_image ]]"
+    PROD_MIGRATE_CMD: "$[[ inputs.migrate_cmd ]]"
     PROD_TENANT_SLUG: "$[[ inputs.tenant_slug ]]"
     DB_URL_SCHEME: "$[[ inputs.db_url_scheme ]]"
   before_script:
     - gem install specific_install -v "$STACK_SPECIFIC_INSTALL_VERSION" --no-document
     - gem specific_install "$STACK_AUTOMATION_REPO" -b "$STACK_AUTOMATION_SHA"
     - export PATH="$(ruby -e 'print Gem.user_dir')/bin:$PATH"
-    - git clone "$STACK_PROVISIONING_REPO" /tmp/provisioning && git -C /tmp/provisioning checkout "$STACK_PROVISIONING_SHA"
-    - cp -r /tmp/provisioning/kamal/app/. .
-    - eval "$(ssh-agent -s)"
-    - install -d -m 700 ~/.ssh
-    - install -m 600 "$PROD_SSH_PRIVATE_KEY" ~/.ssh/prod_deploy_key
-    - ssh-add ~/.ssh/prod_deploy_key
-    - printf 'Host *\n  StrictHostKeyChecking accept-new\n' > ~/.ssh/config
+    - |
+      if [ "$PROD_RUNTIME" = "k3s" ]; then
+        install -d -m 700 ~/.kube
+        export KUBECONFIG="$HOME/.kube/config"
+        printf '%s' "$PROD_KUBE_CA" | base64 -d > ~/.kube/ca.crt
+        kubectl config set-cluster prod --server="$PROD_KUBE_HOST" --certificate-authority="$HOME/.kube/ca.crt" --embed-certs=true
+        kubectl config set-credentials prod --token="$PROD_KUBE_TOKEN"
+        kubectl config set-context prod --cluster=prod --user=prod
+        kubectl config use-context prod
+      else
+        git clone "$STACK_PROVISIONING_REPO" /tmp/provisioning && git -C /tmp/provisioning checkout "$STACK_PROVISIONING_SHA"
+        cp -r /tmp/provisioning/kamal/app/. .
+        eval "$(ssh-agent -s)"
+        install -d -m 700 ~/.ssh
+        install -m 600 "$PROD_SSH_PRIVATE_KEY" ~/.ssh/prod_deploy_key
+        ssh-add ~/.ssh/prod_deploy_key
+        printf 'Host *\n  StrictHostKeyChecking accept-new\n' > ~/.ssh/config
+      fi
   script:
     - eiseron prod deploy
   rules:
