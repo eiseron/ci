@@ -1,0 +1,45 @@
+spec:
+  inputs:
+    prefix:
+      description: Prefix of the runtime-artifact kube variables (e.g. TF_VAR_acme_kube_), completed with host / cluster_ca_certificate / token.
+    api_token:
+      description: Token with api scope used to manage the project variables (pass the consumer secret, e.g. "$ACME_API_TOKEN").
+    branch:
+      default: production
+      description: Branch whose pipelines carry the gate.
+    stage:
+      default: lint
+      description: Stage the gate runs in; must precede the plan/apply stage.
+    scopes:
+      default: "*,production"
+      description: Comma-separated environment scopes the variables live in.
+    environment:
+      default: production
+      description: Environment name granting access to the protected variables.
+---
+include:
+  - local: /lock.yml
+
+kube-vars-gate:
+  stage: $[[ inputs.stage ]]
+  timeout: 5 minutes
+  image: $STACK_RUBY_IMAGE
+  tags:
+    - self-hosted
+  cache: []
+  needs: []
+  variables:
+    KUBE_VARS_PREFIX: $[[ inputs.prefix ]]
+    KUBE_VARS_API_TOKEN: $[[ inputs.api_token ]]
+    KUBE_VARS_SCOPES: $[[ inputs.scopes ]]
+  before_script:
+    - apk add --no-cache git
+    - gem install specific_install -v "$STACK_SPECIFIC_INSTALL_VERSION" --no-document
+    - gem specific_install "$STACK_AUTOMATION_REPO" -b "$STACK_AUTOMATION_SHA"
+  script:
+    - eiseron prod kube-vars-gate
+  rules:
+    - if: $CI_COMMIT_BRANCH == "$[[ inputs.branch ]]" && $CI_PIPELINE_SOURCE != "schedule"
+      when: on_success
+  environment:
+    name: $[[ inputs.environment ]]

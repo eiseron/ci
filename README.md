@@ -870,3 +870,45 @@ stages:
 Consumers of an individual worker script (the `cloudflare_workers_script`
 resource in `stack/provisioning`) pin a `ref` of `stack/workers` themselves;
 the lint template does not gate that.
+
+## templates/kube-vars.yml
+
+Reconciles runtime-artifact kube credential variables with reality before any
+plan. A consumer health gate publishes `<prefix>host`,
+`<prefix>cluster_ca_certificate` and `<prefix>token` once a cluster API is
+reachable from CI; when the endpoint later becomes unreachable (closed
+firewall port, replaced host, rotated certificate), the stale variables arm
+`kubernetes_manifest` resources against a dead endpoint and break every plan,
+including the plan that would fix the endpoint. The `kube-vars-gate` job
+probes the endpoint against the published cluster CA and withdraws the
+variables when it cannot verifiably reach it, delegating to
+`eiseron prod kube-vars-gate` from the lock-pinned automation SHA.
+
+Inputs: `prefix` (required), `api_token` (required, pass the consumer secret,
+e.g. `"$ACME_API_TOKEN"`), `branch` (default `production`), `stage` (default
+`lint`), `scopes` (default `*,production`), `environment` (default
+`production`).
+
+Wire the apply job to need the gate so the reconciliation always precedes the
+plan:
+
+```yaml
+include:
+  - project: eiseron/stack/ci
+    file: /templates/kube-vars.yml
+    ref: v0.9.54
+    inputs:
+      prefix: TF_VAR_acme_kube_
+      api_token: "$ACME_API_TOKEN"
+
+apply:
+  needs:
+    - ancestry-check
+    - job: kube-vars-gate
+      optional: true
+```
+
+The publishing side lives in the consumer health gate:
+`eiseron prod kube-vars-publish` verifies the endpoint the same way before
+publishing, withdraws instead when unreachable, and triggers exactly one
+convergence pipeline when the variables first become ready.
