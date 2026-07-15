@@ -7,6 +7,9 @@ spec:
     branch:
       default: production
       description: Branch whose pipelines carry the gate.
+    plan_source_branch:
+      default: main
+      description: Source branch of the promotion MR whose plan job needs this gate to precede it (the MR's own pipeline, not the branch pipeline, runs the plan job).
     stage:
       default: lint
       description: Stage the gate runs in; must precede the plan/apply stage.
@@ -40,6 +43,8 @@ kube-vars-gate:
     - eiseron prod kube-vars-gate
   rules:
     - if: $CI_COMMIT_BRANCH == "$[[ inputs.branch ]]" && $CI_PIPELINE_SOURCE != "schedule"
+      when: on_success
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "$[[ inputs.branch ]]" && $CI_MERGE_REQUEST_SOURCE_BRANCH_NAME == "$[[ inputs.plan_source_branch ]]"
       when: on_success
   environment:
     name: $[[ inputs.environment ]]

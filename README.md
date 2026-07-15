@@ -885,21 +885,35 @@ variables when it cannot verifiably reach it, delegating to
 `eiseron prod kube-vars-gate` from the lock-pinned automation SHA.
 
 Inputs: `prefix` (required), `api_token` (required, pass the consumer secret,
-e.g. `"$ACME_API_TOKEN"`), `branch` (default `production`), `stage` (default
-`lint`), `scopes` (default `*,production`), `environment` (default
-`production`).
+e.g. `"$ACME_API_TOKEN"`), `branch` (default `production`), `plan_source_branch`
+(default `main`), `stage` (default `lint`), `scopes` (default
+`*,production`), `environment` (default `production`).
 
-Wire the apply job to need the gate so the reconciliation always precedes the
-plan:
+The gate runs on two distinct pipelines, both needed: the `production` branch
+pipeline (`CI_COMMIT_BRANCH`) that carries the real `apply`, and the promotion
+MR's own pipeline (`merge_request_event`, matched on `plan_source_branch` ->
+`branch`) that carries the `plan` job. `CI_COMMIT_BRANCH` is unset on
+merge-request pipelines, so the branch-push rule alone never fires there; the
+`plan` job still receives the environment-scoped kube vars (it declares
+`environment: production`) and would otherwise see the same stale endpoint the
+gate exists to fix.
+
+Wire the apply AND plan jobs to need the gate so the reconciliation always
+precedes them:
 
 ```yaml
 include:
   - project: eiseron/stack/ci
     file: /templates/kube-vars.yml
-    ref: v0.9.54
+    ref: v0.9.55
     inputs:
       prefix: TF_VAR_acme_kube_
       api_token: "$ACME_API_TOKEN"
+
+plan:
+  needs:
+    - job: kube-vars-gate
+      optional: true
 
 apply:
   needs:

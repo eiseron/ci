@@ -25,4 +25,9 @@ want "environment:" "gate needs the environment to receive the protected scoped 
 grep -qE 'stage: \$\[\[ inputs.stage \]\]' "$template" ||
   fail "gate stage must be an input so consumers place it before their plan stage"
 
+want 'CI_PIPELINE_SOURCE == "merge_request_event"' \
+  "gate must also run on the promotion MR's own pipeline: CI_COMMIT_BRANCH is unset there, so the branch-push rule alone never fires and the plan job (which shares the environment-scoped vars) sees the stale endpoint"
+want "CI_MERGE_REQUEST_TARGET_BRANCH_NAME" "the MR-pipeline rule must match the promotion's target branch"
+want "CI_MERGE_REQUEST_SOURCE_BRANCH_NAME" "the MR-pipeline rule must match the promotion's source branch, mirroring the plan job's own rule"
+
 echo "PASS: kube-vars template wiring (gem-backed gate, lock-pinned, pre-plan)"
