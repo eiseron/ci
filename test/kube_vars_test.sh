@@ -29,5 +29,7 @@ want 'CI_PIPELINE_SOURCE == "merge_request_event"' \
   "gate must also run on the promotion MR's own pipeline: CI_COMMIT_BRANCH is unset there, so the branch-push rule alone never fires and the plan job (which shares the environment-scoped vars) sees the stale endpoint"
 want "CI_MERGE_REQUEST_TARGET_BRANCH_NAME" "the MR-pipeline rule must match the promotion's target branch"
 want "CI_MERGE_REQUEST_SOURCE_BRANCH_NAME" "the MR-pipeline rule must match the promotion's source branch, mirroring the plan job's own rule"
+want 'CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH' \
+  "gate must also run on pushes to the default branch: ops.yml's plan job runs there too (a production-plan preview ahead of any promotion MR), so without this rule that pipeline hits the same stale-endpoint timeout the gate exists to prevent"
 
 echo "PASS: kube-vars template wiring (gem-backed gate, lock-pinned, pre-plan)"

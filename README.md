@@ -889,14 +889,22 @@ e.g. `"$ACME_API_TOKEN"`), `branch` (default `production`), `plan_source_branch`
 (default `main`), `stage` (default `lint`), `scopes` (default
 `*,production`), `environment` (default `production`).
 
-The gate runs on two distinct pipelines, both needed: the `production` branch
-pipeline (`CI_COMMIT_BRANCH`) that carries the real `apply`, and the promotion
-MR's own pipeline (`merge_request_event`, matched on `plan_source_branch` ->
-`branch`) that carries the `plan` job. `CI_COMMIT_BRANCH` is unset on
-merge-request pipelines, so the branch-push rule alone never fires there; the
-`plan` job still receives the environment-scoped kube vars (it declares
-`environment: production`) and would otherwise see the same stale endpoint the
-gate exists to fix.
+The `plan` job in `ops.yml` itself runs on THREE distinct pipeline contexts,
+and the gate has a rule matching each one, because `plan` shares the
+environment-scoped kube vars (it declares `environment: production`) in all
+three:
+
+1. A push to the default branch (`CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH`):
+   `ops.yml` runs a production-plan preview on every merge to `main`, ahead of
+   any promotion MR.
+2. The promotion MR's own pipeline (`merge_request_event`, matched on
+   `plan_source_branch` -> `branch`): `CI_COMMIT_BRANCH` is unset on
+   merge-request pipelines, so rules 1 and 3 alone never fire there.
+3. The `production` branch pipeline (`CI_COMMIT_BRANCH == branch`) that
+   carries the real `apply`.
+
+Missing any one of the three leaves that pipeline's `plan` (or `apply`) hitting
+the same stale endpoint the gate exists to prevent.
 
 Wire the apply AND plan jobs to need the gate so the reconciliation always
 precedes them:
@@ -905,7 +913,7 @@ precedes them:
 include:
   - project: eiseron/stack/ci
     file: /templates/kube-vars.yml
-    ref: v0.9.55
+    ref: v0.9.56
     inputs:
       prefix: TF_VAR_acme_kube_
       api_token: "$ACME_API_TOKEN"
