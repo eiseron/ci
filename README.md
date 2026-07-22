@@ -857,21 +857,20 @@ include:
     file: /templates/phoenix-ops.yml
     ref: vX.Y.Z
     inputs:
-      app_name: example
       app_service: example
       app_image: eiseron/example/example/prod
-      app_release_module: Example
-      tenant_slug: example
       runtime: k3s
       migrate_cmd: bin/example eval 'Example.Release.migrate'
 ```
 
-`app_host`, `namespace` and `cloudflare_account_id` default to
-`$PROD_APP_HOST`, `$PROD_NAMESPACE` and `$PROD_CLOUDFLARE_ACCOUNT_ID`, the CI
-vars `product_instance` publishes on the ops project once `prod.enabled` is
-true, so a product on that module never needs to pass them (Terraform is the
-only place they're defined). Pass them explicitly only for a product not
-using `product_instance`, or to override the published value.
+`app_host`, `namespace`, `cloudflare_account_id`, `app_name`, `tenant_slug`
+and `app_release_module` default to `$PROD_APP_HOST`, `$PROD_NAMESPACE`,
+`$PROD_CLOUDFLARE_ACCOUNT_ID`, `$PROD_SLUG` (twice, for `app_name` and
+`tenant_slug`) and `$PROD_RELEASE_MODULE`, the CI vars `product_instance`
+publishes on the ops project once `prod.enabled` is true, so a product on
+that module never needs to pass them (Terraform is the only place they're
+defined). Pass them explicitly only for a product not using
+`product_instance`, or to override the published value.
 `cloudflare_account_id` resolving to empty skips `preview-pages-deploy`
 entirely (products without a static-site preview).
 `tofu_chdirs` defaults to `["."]`.

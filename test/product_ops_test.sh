@@ -23,5 +23,7 @@ want "run_stage: backup" "db-backup-run must share the same backup stage as prod
 
 want 'default: "$PROD_APP_HOST"' "app_host must default to the CI var product_instance publishes, so ops repos stop hardcoding the same literal Terraform already knows"
 want 'default: "$PROD_NAMESPACE"' "namespace must default to the CI var product_instance publishes"
+want 'default: "$PROD_SLUG"' "app_name/tenant_slug must default to the CI var product_instance publishes"
+want 'default: "$PROD_RELEASE_MODULE"' "app_release_module must default to the CI var product_instance publishes"
 
 echo "PASS: product-ops wiring (prod-backup gated to kamal, db-backup-run gated to k3s)"

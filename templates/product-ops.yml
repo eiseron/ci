@@ -7,7 +7,8 @@ spec:
       default: "secrets.enc.env"
       description: "SOPS-encrypted env file decrypted into the job environment."
     app_name:
-      description: "Product slug; the restore drill's backup object prefix (PROD_BACKUP_NAME)."
+      default: "$PROD_SLUG"
+      description: "Product slug; the restore drill's backup object prefix (PROD_BACKUP_NAME). Defaults to PROD_SLUG, published by product_instance."
     app_service:
       description: "kamal service name (APP_SERVICE)."
     app_image:
@@ -19,9 +20,11 @@ spec:
       default: "4000"
       description: "Container port the app listens on (APP_PORT)."
     app_release_module:
-      description: "Elixir release module for the post-deploy migrate hook (APP_RELEASE_MODULE.Release.migrate)."
+      default: "$PROD_RELEASE_MODULE"
+      description: "Elixir release module for the post-deploy migrate hook (APP_RELEASE_MODULE.Release.migrate). Defaults to PROD_RELEASE_MODULE, published by product_instance."
     tenant_slug:
-      description: "Per-product Postgres role/slug (PROD_TENANT_SLUG); managed-password tenant ensured idempotently each deploy."
+      default: "$PROD_SLUG"
+      description: "Per-product Postgres role/slug (PROD_TENANT_SLUG); managed-password tenant ensured idempotently each deploy. Defaults to PROD_SLUG, published by product_instance."
     db_url_scheme:
       default: "ecto"
       description: "Scheme for the assembled DATABASE_URL (DB_URL_SCHEME)."
