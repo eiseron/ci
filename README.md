@@ -831,6 +831,50 @@ Terraform already uses for that project (`TF_VAR_cluster_host`/`_token`/
 Gated to the **production branch**, `when: manual` (same convention as
 `prod-backup.yml`): run a pipeline on `production` and click `db-backup-run`.
 
+Consumers of `phoenix-ops.yml`/`product-ops.yml` do not include this directly;
+it is already wired there, gated to `runtime: k3s`.
+
+## templates/product-ops.yml / templates/phoenix-ops.yml
+
+Facade over the whole product ops pipeline: one include instead of wiring
+`ops.yml`, `prod-deploy.yml`, `prod-backup.yml`/`db-backup-run.yml`,
+`prod-restore.yml`, `prod-tenant.yml`, `db-restore-drill.yml`,
+`db-backup-verify.yml` (`product-ops.yml`), plus `preview-dispatch.yml`,
+`preview-pages-deploy.yml`, `tofu-test.yml`, `tofu-coverage.yml`,
+`coverage-gate.yml` (`phoenix-ops.yml`, which also includes `product-ops.yml`)
+one by one in every `*-ops` repo.
+
+The backup job selected depends on `runtime`: `prod-backup.yml` only fires
+when `runtime == "kamal"` (it depends on the `kamal/app` manifest in
+`stack/provisioning`, retired once a product is fully on k3s); `db-backup-run.yml`
+only fires when `runtime == "k3s"`. Exactly one of the two is ever wired live
+for a given product.
+
+```yaml
+# in <product>-ops
+include:
+  - project: eiseron/stack/ci
+    file: /templates/phoenix-ops.yml
+    ref: vX.Y.Z
+    inputs:
+      app_name: example
+      app_service: example
+      app_image: eiseron/example/example/prod
+      app_host: app.example.com
+      app_release_module: Example
+      tenant_slug: example
+      runtime: k3s
+      migrate_cmd: bin/example eval 'Example.Release.migrate'
+      namespace: example
+      cloudflare_account_id: b406da57022f7381e45749bddbee7f8a
+      tofu_chdirs: ["."]
+```
+
+`namespace` is required when `runtime: k3s` (feeds `db-backup-run`).
+`cloudflare_account_id` is optional; leaving it empty skips
+`preview-pages-deploy` entirely (products without a static-site preview).
+`tofu_chdirs` defaults to `["."]`.
+
 ## templates/notify-telegram.yml
 
 Reusable `after_script` snippet that routes a job failure to a Telegram bot,

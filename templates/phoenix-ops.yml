@@ -31,6 +31,16 @@ spec:
     migrate_cmd:
       default: "bin/migrate"
       description: "Container migrate command for the k3s runtime (PROD_MIGRATE_CMD); ignored on kamal."
+    namespace:
+      default: ""
+      description: "Kubernetes namespace the product_instance CronJob runs in; required when runtime is k3s."
+    cloudflare_account_id:
+      default: ""
+      description: "Cloudflare account id for the static-site preview deployer. Empty skips preview-pages-deploy entirely."
+    tofu_chdirs:
+      type: array
+      default: ["."]
+      description: "Directories of the Terraform/OpenTofu root(s) to fmt-check/validate/test."
 ---
 
 include:
@@ -48,7 +58,25 @@ include:
       migrate_cmd: $[[ inputs.migrate_cmd ]]
       tenant_slug: $[[ inputs.tenant_slug ]]
       db_url_scheme: $[[ inputs.db_url_scheme ]]
+      namespace: $[[ inputs.namespace ]]
   - local: /templates/preview-dispatch.yml
+  - local: /templates/preview-pages-deploy.yml
+    rules:
+      - if: '"$[[ inputs.cloudflare_account_id ]]" != ""'
+    inputs:
+      account_id: $[[ inputs.cloudflare_account_id ]]
+      preview_stage: preview
+  - local: /templates/tofu-test.yml
+    inputs:
+      chdirs: $[[ inputs.tofu_chdirs ]]
+      stage: lint
+  - local: /templates/tofu-coverage.yml
+    inputs:
+      stage: lint
+  - local: /templates/coverage-gate.yml
+    inputs:
+      test_job_name: tofu-coverage
+      stage: lint
 
 stages:
   - lint

@@ -31,6 +31,9 @@ spec:
     migrate_cmd:
       default: "bin/migrate"
       description: "Container migrate command for the k3s runtime (PROD_MIGRATE_CMD); ignored on kamal."
+    namespace:
+      default: ""
+      description: "Kubernetes namespace the product_instance CronJob runs in; required when runtime is k3s (selects db-backup-run instead of prod-backup)."
 ---
 
 include:
@@ -51,6 +54,8 @@ include:
       db_url_scheme: $[[ inputs.db_url_scheme ]]
       deploy_stage: deploy
   - local: /templates/prod-backup.yml
+    rules:
+      - if: '"$[[ inputs.runtime ]]" == "kamal"'
     inputs:
       app_service: $[[ inputs.app_service ]]
       app_image: $[[ inputs.app_image ]]
@@ -60,6 +65,13 @@ include:
       tenant_slug: $[[ inputs.tenant_slug ]]
       db_url_scheme: $[[ inputs.db_url_scheme ]]
       backup_stage: backup
+  - local: /templates/db-backup-run.yml
+    rules:
+      - if: '"$[[ inputs.runtime ]]" == "k3s"'
+    inputs:
+      app_name: $[[ inputs.app_name ]]
+      namespace: $[[ inputs.namespace ]]
+      run_stage: backup
   - local: /templates/prod-restore.yml
     inputs:
       app_service: $[[ inputs.app_service ]]
