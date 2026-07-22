@@ -13,7 +13,8 @@ spec:
     app_image:
       description: "Image repository path (APP_IMAGE)."
     app_host:
-      description: "Public app host (APP_HOST)."
+      default: "$PROD_APP_HOST"
+      description: "Public app host (APP_HOST). Defaults to PROD_APP_HOST, published by product_instance; override only for products not on that module."
     app_port:
       default: "4000"
       description: "Container port the app listens on (APP_PORT)."
@@ -32,11 +33,11 @@ spec:
       default: "bin/migrate"
       description: "Container migrate command for the k3s runtime (PROD_MIGRATE_CMD); ignored on kamal."
     namespace:
-      default: ""
-      description: "Kubernetes namespace the product_instance CronJob runs in; required when runtime is k3s."
+      default: "$PROD_NAMESPACE"
+      description: "Kubernetes namespace the product_instance CronJob runs in; required when runtime is k3s. Defaults to PROD_NAMESPACE, published by product_instance."
     cloudflare_account_id:
-      default: ""
-      description: "Cloudflare account id for the static-site preview deployer. Empty skips preview-pages-deploy entirely."
+      default: "$PROD_CLOUDFLARE_ACCOUNT_ID"
+      description: "Cloudflare account id for the static-site preview deployer. Defaults to PROD_CLOUDFLARE_ACCOUNT_ID, published by product_instance with a wildcard environment_scope (readable from this pipeline-level rule); empty skips preview-pages-deploy entirely."
     tofu_chdirs:
       type: array
       default: ["."]

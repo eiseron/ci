@@ -27,4 +27,8 @@ want "test_job_name: tofu-coverage" "coverage-gate must be wired to the tofu-cov
 
 want "namespace: \$[[ inputs.namespace ]]" "namespace must pass through to product-ops for the k3s backup CronJob"
 
+want 'default: "$PROD_APP_HOST"' "app_host must default to the CI var product_instance publishes, so ops repos stop hardcoding the same literal Terraform already knows"
+want 'default: "$PROD_NAMESPACE"' "namespace must default to the CI var product_instance publishes"
+want 'default: "$PROD_CLOUDFLARE_ACCOUNT_ID"' "cloudflare_account_id must default to the CI var product_instance publishes (scoped to all environments so this pipeline-level rule can read it)"
+
 echo "PASS: phoenix-ops facade wiring (single include covers preview, tofu lint/test/coverage, backup)"

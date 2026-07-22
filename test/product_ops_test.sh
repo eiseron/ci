@@ -21,4 +21,7 @@ want '- if: '"'"'"$[[ inputs.runtime ]]" == "k3s"'"'" "db-backup-run must be gat
 want "namespace: \$[[ inputs.namespace ]]" "namespace input must reach db-backup-run"
 want "run_stage: backup" "db-backup-run must share the same backup stage as prod-backup, not a new one"
 
+want 'default: "$PROD_APP_HOST"' "app_host must default to the CI var product_instance publishes, so ops repos stop hardcoding the same literal Terraform already knows"
+want 'default: "$PROD_NAMESPACE"' "namespace must default to the CI var product_instance publishes"
+
 echo "PASS: product-ops wiring (prod-backup gated to kamal, db-backup-run gated to k3s)"

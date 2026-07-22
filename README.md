@@ -860,19 +860,20 @@ include:
       app_name: example
       app_service: example
       app_image: eiseron/example/example/prod
-      app_host: app.example.com
       app_release_module: Example
       tenant_slug: example
       runtime: k3s
       migrate_cmd: bin/example eval 'Example.Release.migrate'
-      namespace: example
-      cloudflare_account_id: b406da57022f7381e45749bddbee7f8a
-      tofu_chdirs: ["."]
 ```
 
-`namespace` is required when `runtime: k3s` (feeds `db-backup-run`).
-`cloudflare_account_id` is optional; leaving it empty skips
-`preview-pages-deploy` entirely (products without a static-site preview).
+`app_host`, `namespace` and `cloudflare_account_id` default to
+`$PROD_APP_HOST`, `$PROD_NAMESPACE` and `$PROD_CLOUDFLARE_ACCOUNT_ID`, the CI
+vars `product_instance` publishes on the ops project once `prod.enabled` is
+true, so a product on that module never needs to pass them (Terraform is the
+only place they're defined). Pass them explicitly only for a product not
+using `product_instance`, or to override the published value.
+`cloudflare_account_id` resolving to empty skips `preview-pages-deploy`
+entirely (products without a static-site preview).
 `tofu_chdirs` defaults to `["."]`.
 
 ## templates/notify-telegram.yml
