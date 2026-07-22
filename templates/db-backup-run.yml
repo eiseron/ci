@@ -20,8 +20,7 @@ db-backup-run:
   needs: []
   timeout: 5 minutes
   image:
-    name: bitnami/kubectl:1.30
-    entrypoint: [""]
+    name: $STACK_K8S_IMAGE
   tags:
     - self-hosted
   environment:

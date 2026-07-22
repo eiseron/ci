@@ -17,6 +17,8 @@ absent() {
 }
 
 want "db-backup-run:" "run job is missing"
+want '$STACK_K8S_IMAGE' "kubectl image must come from the lock (STACK_K8S_IMAGE, alpine/k8s -- bitnami/kubectl has no numbered tags at all, so it can never resolve through manifest.yml's semver-based lock)"
+want "/lock.yml" "must include lock.yml, which defines STACK_K8S_IMAGE"
 want "kubectl create job" "job must clone the CronJob via kubectl create job"
 want '--from="cronjob/$[[ inputs.app_name ]]-db-backup"' "job must clone the product's own CronJob, not a hardcoded name"
 want "name: production" "environment must be production so the cluster credentials resolve"

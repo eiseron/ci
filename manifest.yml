@@ -16,3 +16,4 @@ images:
   alpine: "3.23"
   postgres: "18-alpine"
   node: "22-alpine"
+  alpine/k8s: "~> 1.36"
