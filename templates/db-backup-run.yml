@@ -1,0 +1,43 @@
+spec:
+  inputs:
+    app_name:
+      default: "app"
+      description: "Product slug; the CronJob cloned is named <app_name>-db-backup."
+    namespace:
+      default: "app"
+      description: "Kubernetes namespace the CronJob runs in."
+    run_stage:
+      default: "run"
+      description: "Pipeline stage for the job (the consumer must declare it)."
+---
+include:
+  - local: /lock.yml
+  - local: /templates/notify-telegram.yml
+
+db-backup-run:
+  extends: .notify_telegram_on_failure
+  stage: $[[ inputs.run_stage ]]
+  needs: []
+  timeout: 5 minutes
+  image:
+    name: bitnami/kubectl:1.30
+    entrypoint: [""]
+  tags:
+    - self-hosted
+  environment:
+    name: production
+  resource_group: production
+  cache: []
+  variables:
+    GIT_STRATEGY: none
+  before_script:
+    - echo "$TF_VAR_cluster_ca_cert" | base64 -d > "$CI_PROJECT_DIR/cluster-ca.crt"
+    - kubectl config set-cluster prod-us --server="$TF_VAR_cluster_host" --certificate-authority="$CI_PROJECT_DIR/cluster-ca.crt"
+    - kubectl config set-credentials prod-us --token="$TF_VAR_cluster_token"
+    - kubectl config set-context prod-us --cluster=prod-us --user=prod-us --namespace="$[[ inputs.namespace ]]"
+    - kubectl config use-context prod-us
+  script:
+    - kubectl create job "manual-backup-$(date +%s)" --from="cronjob/$[[ inputs.app_name ]]-db-backup"
+  rules:
+    - if: $CI_COMMIT_BRANCH == "production"
+      when: manual

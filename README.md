@@ -800,6 +800,37 @@ the variable on the verify schedule (`gitlab_pipeline_schedule_variable`) or
 type it into a manual web run. The discriminator keeps the verify schedule
 from also triggering the weekly drill, and vice versa.
 
+## templates/db-backup-run.yml
+
+Manual "back up now" job for a product on k3s (the `product_instance`
+`kubernetes_cron_job_v1`, not the Kamal accessory `prod-backup.yml` covers).
+`kubectl create job --from=cronjob/<app_name>-db-backup` clones the CronJob's
+own pod template (same image, command, env) and runs it once immediately,
+so there is exactly one backup definition to keep in sync between the
+scheduled and the on-demand run.
+
+```yaml
+# in <product>-ops
+include:
+  - project: eiseron/stack/ci
+    file: /templates/db-backup-run.yml
+    ref: vX.Y.Z
+    inputs:
+      app_name: example
+      namespace: example
+stages: [run]
+```
+
+Inputs: `app_name` (the CronJob is `<app_name>-db-backup`), `namespace`
+(where it runs), `run_stage` (default `run`).
+
+Authenticates against the k3s API with the same cluster credentials
+Terraform already uses for that project (`TF_VAR_cluster_host`/`_token`/
+`_ca_cert`); no separate token to mint or rotate.
+
+Gated to the **production branch**, `when: manual` (same convention as
+`prod-backup.yml`): run a pipeline on `production` and click `db-backup-run`.
+
 ## templates/notify-telegram.yml
 
 Reusable `after_script` snippet that routes a job failure to a Telegram bot,
