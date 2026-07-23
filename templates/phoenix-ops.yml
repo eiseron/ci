@@ -13,7 +13,8 @@ spec:
       default: "$PROD_SLUG"
       description: "Service name (APP_SERVICE). Defaults to PROD_SLUG, published by product_instance."
     app_image:
-      description: "Image repository path (APP_IMAGE)."
+      default: "$PROD_APP_IMAGE_REPO"
+      description: "Image repository path (APP_IMAGE). Defaults to PROD_APP_IMAGE_REPO, published by product_instance (the app image reference with the registry host and tag stripped)."
     app_host:
       default: "$PROD_APP_HOST"
       description: "Public app host (APP_HOST). Defaults to PROD_APP_HOST, published by product_instance; override only for products not on that module."

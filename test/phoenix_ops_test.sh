@@ -38,6 +38,7 @@ want 'default: "$PROD_SLUG"' "app_name/tenant_slug must default to the CI var pr
 want 'default: "$PROD_RELEASE_MODULE"' "app_release_module must default to the CI var product_instance publishes"
 want "bin/\$PROD_SLUG eval '\$PROD_RELEASE_MODULE.Release.setup'" "migrate_cmd must default to the standard bin/<slug> eval '<release_module>.Release.setup' convention"
 want 'default: "$PROD_SLUG"' "app_service must default to PROD_SLUG"
+want 'default: "$PROD_APP_IMAGE_REPO"' "app_image must default to PROD_APP_IMAGE_REPO, published by product_instance"
 
 absent "kamal" "kamal support has been retired; k3s is the only runtime"
 absent "runtime:" "the runtime input is gone now that k3s is the only supported target"
