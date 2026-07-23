@@ -177,7 +177,7 @@ Inputs (`coverage-gate.yml`):
 
 `lock-smoke` job — runs on **every MR** and on the default-branch push,
 proving the `STACK_AUTOMATION_SHA` produced by the lock actually installs.
-The prod-path templates (`prod-deploy`, `prod-backup`, `prod-restore`,
+The prod-path templates (`prod-deploy`, `prod-restore`,
 `db-backup-verify`) install the gem with
 `gem specific_install <repo> -b "$STACK_AUTOMATION_SHA"` before running
 anything — but those jobs are gated to production/schedule/web pipelines,
@@ -570,14 +570,12 @@ Optional (manifest defaults): `PG_ADMIN_USER`, `KAMAL_REGISTRY_SERVER`, `DEPLOY_
 ## templates/prod-deploy.yml
 
 App-only product deploy, triggered by the product's `prod-build` pipeline
-(`PROD_TAG` / `PROD_PROJECT` / `PROD_ACTION=deploy`). Clones the public
-`provisioning` at `provisioning_ref`, renders the canonical `kamal/app`
-manifest from env, and runs `eiseron prod deploy` (kamal deploy of the
-pre-built image, anti-downgrade guard). The app registers with the shared
-kamal-proxy and connects to the platform's shared postgres. `eiseron prod
-deploy` idempotently re-applies the managed `PROD_TENANT_PASSWORD` to the role
-(a no-op on a normal deploy) and assembles `DATABASE_URL` into the kamal
-subprocess only, so the URL is never a CI var, log line, or state entry.
+(`PROD_TAG` / `PROD_PROJECT` / `PROD_ACTION=deploy`). Builds a `KUBECONFIG`
+from `PROD_KUBE_HOST`/`PROD_KUBE_TOKEN`/`PROD_KUBE_CA` and runs `eiseron prod
+deploy` (kubectl-based k3s deploy, anti-downgrade guard), which idempotently
+re-applies the managed `PROD_TENANT_PASSWORD` to the role (a no-op on a normal
+deploy) and runs the migrate command inside the cluster. k3s is the only
+supported runtime (kamal support was retired).
 
 ```yaml
 # in <product>-ops
@@ -586,32 +584,27 @@ include:
     file: /templates/prod-deploy.yml
     ref: vX.Y.Z
     inputs:
-      app_service: app
       app_image: org/group/app/prod
       app_host: app.example.com
-      app_release_module: App
       tenant_slug: app
 stages: [deploy]
 ```
 
 Per-product, non-secret descriptors are committed as template inputs (auditable
-MR, not a mutable CI var): `app_service`, `app_image`, `app_host`,
-`app_release_module`, `tenant_slug`, `app_port` (default `4000`), `db_url_scheme`
-(default `ecto`).
+MR, not a mutable CI var): `app_image`, `app_host`, `tenant_slug`, `app_port`
+(default `4000`), `db_url_scheme` (default `ecto`). `app_service` and
+`app_release_module` default to `PROD_SLUG`/`PROD_RELEASE_MODULE`, published
+by `product_instance`, so a product on that module never needs to pass them.
 
 CI vars the consumer provides (Terraform-managed in `<product>-ops`):
 
 | var | purpose |
 | --- | --- |
-| `PROD_SSH_PRIVATE_KEY` | File var: OpenSSH private key for the prod host |
+| `PROD_KUBE_HOST` / `PROD_KUBE_TOKEN` / `PROD_KUBE_CA` | k3s cluster API endpoint, bearer token, and base64 CA |
 | `PROD_DEPLOY_READ_TOKEN` | read_api token on the product repo (latest-tag guard) |
 | `PROD_PROJECT` | product repo path (latest-tag guard) |
-| `PROD_HOST` | prod host IP/name (manifest + password apply) |
-| `KAMAL_REGISTRY_USERNAME` / `KAMAL_REGISTRY_PASSWORD` | registry creds |
 | `SECRET_KEY_BASE` | app session secret |
 | `PROD_TENANT_PASSWORD` | managed DB role password (`random_password` + keeper); re-applied each deploy, rotated by bumping the keeper |
-
-Optional (manifest defaults): `PROXY_SSL`, `KAMAL_REGISTRY_SERVER`, `DEPLOY_SSH_USER`.
 
 ## templates/prod-tenant.yml
 
@@ -684,37 +677,6 @@ the variable on the drill schedule (`gitlab_pipeline_schedule_variable`) or
 type it into a manual web run. Without it the drill is silent, which is what
 lets the daily `db-backup-verify` schedule live next to the weekly drill
 schedule without each one triggering the other.
-
-## templates/prod-backup.yml
-
-Manual "backup now" job — an on-demand snapshot outside the daily cron, for
-verifying the pipe end to end or capturing a point before a risky change. On
-the ops image it runs `eiseron prod backup`, which `kamal accessory exec`s a
-one-shot `eiseron db backup` inside the already-running backup accessory: an
-ephemeral container with the accessory's env, network and `/backups` volume,
-so the backup runs fully configured without touching the running scheduler and
-without host access. The dump is `pg_dump | age`d to the recipients and
-uploaded to R2 (and the run self-prunes old objects, like the scheduled one).
-
-Gated to the **production branch**, `when: manual` — run a pipeline on
-`production` and click `prod-backup`. (Unlike `prod-restore` it needs no extra
-variable: a backup is non-destructive.)
-
-```yaml
-# in <product>-ops (included via product-ops/phoenix-ops)
-include:
-  - project: eiseron/stack/ci
-    file: /templates/prod-backup.yml
-    ref: vX.Y.Z
-    inputs:
-      app_service: app
-stages: [backup]
-```
-
-Inputs: `app_service` (the accessory is `<app_service>-backup`), `automation_ref`
-(carries `eiseron prod backup`), `image_tag` (ops), `backup_stage` (default
-`backup`). Reuses the accessory's production-scope CI vars (PG/AWS/recipients);
-no new var to pass.
 
 ## templates/prod-restore.yml
 
@@ -802,12 +764,11 @@ from also triggering the weekly drill, and vice versa.
 
 ## templates/db-backup-run.yml
 
-Manual "back up now" job for a product on k3s (the `product_instance`
-`kubernetes_cron_job_v1`, not the Kamal accessory `prod-backup.yml` covers).
-`kubectl create job --from=cronjob/<app_name>-db-backup` clones the CronJob's
-own pod template (same image, command, env) and runs it once immediately,
-so there is exactly one backup definition to keep in sync between the
-scheduled and the on-demand run.
+Manual "back up now" job for the product's `product_instance`
+`kubernetes_cron_job_v1`. `kubectl create job --from=cronjob/<app_name>-db-backup`
+clones the CronJob's own pod template (same image, command, env) and runs it
+once immediately, so there is exactly one backup definition to keep in sync
+between the scheduled and the on-demand run.
 
 ```yaml
 # in <product>-ops
@@ -828,27 +789,22 @@ Authenticates against the k3s API with the same cluster credentials
 Terraform already uses for that project (`TF_VAR_cluster_host`/`_token`/
 `_ca_cert`); no separate token to mint or rotate.
 
-Gated to the **production branch**, `when: manual` (same convention as
-`prod-backup.yml`): run a pipeline on `production` and click `db-backup-run`.
+Gated to the **production branch**, `when: manual`: run a pipeline on
+`production` and click `db-backup-run`.
 
 Consumers of `phoenix-ops.yml`/`product-ops.yml` do not include this directly;
-it is already wired there, gated to `runtime: k3s`.
+it is already wired there unconditionally.
 
 ## templates/product-ops.yml / templates/phoenix-ops.yml
 
 Facade over the whole product ops pipeline: one include instead of wiring
-`ops.yml`, `prod-deploy.yml`, `prod-backup.yml`/`db-backup-run.yml`,
-`prod-restore.yml`, `prod-tenant.yml`, `db-restore-drill.yml`,
-`db-backup-verify.yml` (`product-ops.yml`), plus `preview-dispatch.yml`,
-`preview-pages-deploy.yml`, `tofu-test.yml`, `tofu-coverage.yml`,
-`coverage-gate.yml` (`phoenix-ops.yml`, which also includes `product-ops.yml`)
-one by one in every `*-ops` repo.
-
-The backup job selected depends on `runtime`: `prod-backup.yml` only fires
-when `runtime == "kamal"` (it depends on the `kamal/app` manifest in
-`stack/provisioning`, retired once a product is fully on k3s); `db-backup-run.yml`
-only fires when `runtime == "k3s"`. Exactly one of the two is ever wired live
-for a given product.
+`ops.yml`, `prod-deploy.yml`, `db-backup-run.yml`, `prod-restore.yml`,
+`prod-tenant.yml`, `db-restore-drill.yml`, `db-backup-verify.yml`
+(`product-ops.yml`), plus `preview-dispatch.yml`, `preview-pages-deploy.yml`,
+`tofu-test.yml`, `tofu-coverage.yml`, `coverage-gate.yml` (`phoenix-ops.yml`,
+which also includes `product-ops.yml`) one by one in every `*-ops` repo. k3s
+is the only supported runtime (kamal support, including `prod-backup.yml`,
+was retired).
 
 ```yaml
 # in <product>-ops
@@ -857,20 +813,19 @@ include:
     file: /templates/phoenix-ops.yml
     ref: vX.Y.Z
     inputs:
-      app_service: example
       app_image: eiseron/example/example/prod
-      runtime: k3s
-      migrate_cmd: bin/example eval 'Example.Release.migrate'
 ```
 
-`app_host`, `namespace`, `cloudflare_account_id`, `app_name`, `tenant_slug`
-and `app_release_module` default to `$PROD_APP_HOST`, `$PROD_NAMESPACE`,
-`$PROD_CLOUDFLARE_ACCOUNT_ID`, `$PROD_SLUG` (twice, for `app_name` and
-`tenant_slug`) and `$PROD_RELEASE_MODULE`, the CI vars `product_instance`
-publishes on the ops project once `prod.enabled` is true, so a product on
-that module never needs to pass them (Terraform is the only place they're
-defined). Pass them explicitly only for a product not using
-`product_instance`, or to override the published value.
+`app_host`, `namespace`, `cloudflare_account_id`, `app_name`, `tenant_slug`,
+`app_service` and `app_release_module` default to `$PROD_APP_HOST`,
+`$PROD_NAMESPACE`, `$PROD_CLOUDFLARE_ACCOUNT_ID`, `$PROD_SLUG` (three times,
+for `app_name`/`tenant_slug`/`app_service`) and `$PROD_RELEASE_MODULE`, the CI
+vars `product_instance` publishes on the ops project once `prod.enabled` is
+true, so a product on that module never needs to pass them (Terraform is the
+only place they're defined). `migrate_cmd` defaults to the standard
+`bin/$PROD_SLUG eval '$PROD_RELEASE_MODULE.Release.migrate'` convention, built
+from those same two vars. Pass any of them explicitly only for a product not
+using `product_instance`, or to override the published value.
 `cloudflare_account_id` resolving to empty skips `preview-pages-deploy`
 entirely (products without a static-site preview).
 `tofu_chdirs` defaults to `["."]`.

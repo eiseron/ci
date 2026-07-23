@@ -10,7 +10,8 @@ spec:
       default: "$PROD_SLUG"
       description: "Product slug; the restore drill's backup object prefix (PROD_BACKUP_NAME). Defaults to PROD_SLUG, published by product_instance."
     app_service:
-      description: "kamal service name (APP_SERVICE)."
+      default: "$PROD_SLUG"
+      description: "Service name (APP_SERVICE). Defaults to PROD_SLUG, published by product_instance."
     app_image:
       description: "Image repository path (APP_IMAGE)."
     app_host:
@@ -28,16 +29,12 @@ spec:
     db_url_scheme:
       default: "ecto"
       description: "Scheme for the assembled DATABASE_URL (DB_URL_SCHEME); ecto for Phoenix."
-    runtime:
-      default: "kamal"
-      options: ["kamal", "k3s"]
-      description: "Prod deploy runtime (kamal|k3s). Default kamal for back-compat."
     migrate_cmd:
-      default: "bin/migrate"
-      description: "Container migrate command for the k3s runtime (PROD_MIGRATE_CMD); ignored on kamal."
+      default: "bin/$PROD_SLUG eval '$PROD_RELEASE_MODULE.Release.migrate'"
+      description: "Container migrate command (PROD_MIGRATE_CMD). Defaults to the standard bin/<slug> eval '<release_module>.Release.migrate' convention, built from PROD_SLUG/PROD_RELEASE_MODULE, published by product_instance."
     namespace:
       default: "$PROD_NAMESPACE"
-      description: "Kubernetes namespace the product_instance CronJob runs in; required when runtime is k3s. Defaults to PROD_NAMESPACE, published by product_instance."
+      description: "Kubernetes namespace the product_instance CronJob runs in. Defaults to PROD_NAMESPACE, published by product_instance."
     cloudflare_account_id:
       default: "$PROD_CLOUDFLARE_ACCOUNT_ID"
       description: "Cloudflare account id for the static-site preview deployer. Defaults to PROD_CLOUDFLARE_ACCOUNT_ID, published by product_instance with a wildcard environment_scope (readable from this pipeline-level rule); empty skips preview-pages-deploy entirely."
@@ -58,7 +55,6 @@ include:
       app_host: $[[ inputs.app_host ]]
       app_port: $[[ inputs.app_port ]]
       app_release_module: $[[ inputs.app_release_module ]]
-      runtime: $[[ inputs.runtime ]]
       migrate_cmd: $[[ inputs.migrate_cmd ]]
       tenant_slug: $[[ inputs.tenant_slug ]]
       db_url_scheme: $[[ inputs.db_url_scheme ]]
