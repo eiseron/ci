@@ -823,7 +823,7 @@ for `app_name`/`tenant_slug`/`app_service`) and `$PROD_RELEASE_MODULE`, the CI
 vars `product_instance` publishes on the ops project once `prod.enabled` is
 true, so a product on that module never needs to pass them (Terraform is the
 only place they're defined). `migrate_cmd` defaults to the standard
-`bin/$PROD_SLUG eval '$PROD_RELEASE_MODULE.Release.migrate'` convention, built
+`bin/$PROD_SLUG eval '$PROD_RELEASE_MODULE.Release.setup'` convention, built
 from those same two vars. Pass any of them explicitly only for a product not
 using `product_instance`, or to override the published value.
 `cloudflare_account_id` resolving to empty skips `preview-pages-deploy`

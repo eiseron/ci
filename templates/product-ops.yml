@@ -30,8 +30,8 @@ spec:
       default: "ecto"
       description: "Scheme for the assembled DATABASE_URL (DB_URL_SCHEME)."
     migrate_cmd:
-      default: "bin/$PROD_SLUG eval '$PROD_RELEASE_MODULE.Release.migrate'"
-      description: "Container migrate command (PROD_MIGRATE_CMD). Defaults to the standard bin/<slug> eval '<release_module>.Release.migrate' convention, built from PROD_SLUG/PROD_RELEASE_MODULE, published by product_instance."
+      default: "bin/$PROD_SLUG eval '$PROD_RELEASE_MODULE.Release.setup'"
+      description: "Container migrate command (PROD_MIGRATE_CMD). Defaults to the standard bin/<slug> eval '<release_module>.Release.setup' convention (migrate, then seed only for non-prod deploy profiles), built from PROD_SLUG/PROD_RELEASE_MODULE, published by product_instance."
     namespace:
       default: "$PROD_NAMESPACE"
       description: "Kubernetes namespace the product_instance CronJob runs in. Defaults to PROD_NAMESPACE, published by product_instance."

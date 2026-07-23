@@ -36,7 +36,7 @@ want 'default: "$PROD_NAMESPACE"' "namespace must default to the CI var product_
 want 'default: "$PROD_CLOUDFLARE_ACCOUNT_ID"' "cloudflare_account_id must default to the CI var product_instance publishes (scoped to all environments so this pipeline-level rule can read it)"
 want 'default: "$PROD_SLUG"' "app_name/tenant_slug must default to the CI var product_instance publishes"
 want 'default: "$PROD_RELEASE_MODULE"' "app_release_module must default to the CI var product_instance publishes"
-want "bin/\$PROD_SLUG eval '\$PROD_RELEASE_MODULE.Release.migrate'" "migrate_cmd must default to the standard bin/<slug> eval '<release_module>.Release.migrate' convention"
+want "bin/\$PROD_SLUG eval '\$PROD_RELEASE_MODULE.Release.setup'" "migrate_cmd must default to the standard bin/<slug> eval '<release_module>.Release.setup' convention"
 want 'default: "$PROD_SLUG"' "app_service must default to PROD_SLUG"
 
 absent "kamal" "kamal support has been retired; k3s is the only runtime"
